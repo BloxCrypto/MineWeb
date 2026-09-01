@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: bot
+    description: Mineflayer bot controls
 paths:
   /healthz:
     get:
@@ -24,6 +26,106 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /bot/status:
+    get:
+      operationId: getBotStatus
+      tags: [bot]
+      summary: Get current bot status
+      description: Returns the bot connection state, identity, server target, and recent activity.
+      responses:
+        "200":
+          description: Bot status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+  /bot/logs:
+    get:
+      operationId: getBotLogs
+      tags: [bot]
+      summary: Get recent bot logs
+      description: Returns recent connection, chat, and error events from the in-memory bot session.
+      responses:
+        "200":
+          description: Recent logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotLog"
+  /bot/connect:
+    post:
+      operationId: connectBot
+      tags: [bot]
+      summary: Connect the Mineflayer bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotConnectInput"
+      responses:
+        "200":
+          description: Bot connection started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+        "400":
+          description: Invalid bot connection settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Bot is already connecting or connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /bot/disconnect:
+    post:
+      operationId: disconnectBot
+      tags: [bot]
+      summary: Disconnect the Mineflayer bot
+      responses:
+        "200":
+          description: Bot disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+  /bot/chat:
+    post:
+      operationId: sendBotChat
+      tags: [bot]
+      summary: Send a chat message through the bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotChatInput"
+      responses:
+        "200":
+          description: Chat message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+        "400":
+          description: Invalid chat message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Bot is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +135,82 @@ components:
           type: string
       required:
         - status
+    BotStatus:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [offline, connecting, online, error]
+        username:
+          type: ["string", "null"]
+        host:
+          type: ["string", "null"]
+        port:
+          type: ["number", "null"]
+          multipleOf: 1
+        version:
+          type: ["string", "null"]
+        health:
+          type: ["number", "null"]
+        position:
+          type: ["object", "null"]
+          properties:
+            x: { type: number }
+            y: { type: number }
+            z: { type: number }
+          required: [x, y, z]
+        lastEvent:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+          format: date-time
+      required: [state, username, host, port, version, health, position, lastEvent, updatedAt]
+    BotLog:
+      type: object
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        level:
+          type: string
+          enum: [info, success, warning, error, chat]
+        message:
+          type: string
+      required: [id, timestamp, level, message]
+    BotConnectInput:
+      type: object
+      properties:
+        host:
+          type: string
+          minLength: 1
+        port:
+          type: number
+          multipleOf: 1
+          minimum: 1
+          maximum: 65535
+        username:
+          type: string
+          minLength: 1
+        version:
+          type: ["string", "null"]
+        auth:
+          type: string
+          enum: [offline, microsoft]
+      required: [host, port, username, auth]
+    BotChatInput:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 256
+      required: [message]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
 

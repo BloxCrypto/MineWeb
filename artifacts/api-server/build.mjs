@@ -83,6 +83,7 @@ async function buildAll() {
       "newrelic",
       "odbc",
       "piscina",
+      "mineflayer",
       "realm",
       "ref-napi",
       "rocksdb",
