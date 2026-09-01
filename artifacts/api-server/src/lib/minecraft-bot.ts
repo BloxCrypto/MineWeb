@@ -2,6 +2,7 @@ import * as mineflayer from "mineflayer";
 import type { Bot } from "mineflayer";
 import pathfinderPackage from "mineflayer-pathfinder";
 import { logger } from "./logger";
+import { startPrismarineViewer, stopPrismarineViewer } from "./minecraft-viewer";
 
 const { Movements, goals, pathfinder } = pathfinderPackage;
 
@@ -146,6 +147,10 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
         bot.pathfinder.setMovements(new Movements(bot));
         addLog("info", "Pathfinder ready for coordinate navigation");
       }
+      if (bot) {
+        startPrismarineViewer(bot);
+        addLog("success", "Live world viewer ready at /api/viewer/");
+      }
     });
 
     bot.on("chat", (username, message) => {
@@ -173,6 +178,7 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
     bot.on("end", (reason) => {
       if (state !== "error") state = "offline";
       addLog("warning", reason ? `Connection ended: ${reason}` : "Connection ended");
+      stopPrismarineViewer();
       bot = null;
       touch();
     });
@@ -191,6 +197,7 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
 export function disconnectBot(): BotStatus {
   if (bot) {
     addLog("info", "Disconnecting bot");
+    stopPrismarineViewer();
     bot.quit("Disconnected from the control console");
     bot = null;
   } else {

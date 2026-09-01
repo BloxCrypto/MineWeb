@@ -3,6 +3,8 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { registerViewerProxy } from "./lib/minecraft-viewer";
+import { createServer } from "node:http";
 
 const app: Express = express();
 
@@ -30,5 +32,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+export const httpServer = createServer(app);
+registerViewerProxy(app, httpServer);
 
 export default app;

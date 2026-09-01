@@ -413,6 +413,27 @@ function Home() {
             </section>
           </div>
 
+          <section className="panel viewer-panel reveal delay-4">
+            <div className="panel-head">
+              <SectionLabel icon={Gamepad2} eyebrow="03 / WORLD VIEW" title="Prismarine viewer" />
+              <div className="viewer-head-actions">
+                <span className={`viewer-status ${state === 'online' ? 'viewer-status-live' : ''}`}><span /> {state === 'online' ? 'LIVE FEED' : 'WAITING FOR BOT'}</span>
+                {state === 'online' && <a className="text-button" href="/api/viewer/" target="_blank" rel="noreferrer" data-testid="link-open-viewer"><ExternalLink size={14} /> Open</a>}
+              </div>
+            </div>
+            <div className="viewer-shell">
+              {state === 'online' ? (
+                <iframe className="viewer-frame" src="/api/viewer/" title="Live Minecraft world viewer" data-testid="iframe-viewer" />
+              ) : (
+                <div className="viewer-empty">
+                  <div className="viewer-empty-icon"><Gamepad2 size={22} /></div>
+                  <strong>World view is on standby</strong>
+                  <span>Connect the bot to stream its nearby terrain and position here.</span>
+                </div>
+              )}
+            </div>
+          </section>
+
           <div className="lower-grid">
             <section className="panel logs-panel reveal delay-4">
               <div className="panel-head">

@@ -85,6 +85,7 @@ async function buildAll() {
       "piscina",
       "mineflayer",
       "mineflayer-pathfinder",
+      "prismarine-viewer",
       "realm",
       "ref-napi",
       "rocksdb",
