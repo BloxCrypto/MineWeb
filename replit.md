@@ -1,10 +1,11 @@
-# [Project name]
+# Minecraft Bot Console
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A browser control console for connecting and operating a Mineflayer Minecraft bot.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/minecraft-bot run dev` — run the bot control website
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -19,18 +20,27 @@ _Replace the heading above with the project's name, and this line with one sente
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
+- Bot runtime: Mineflayer, loaded as a server-side runtime dependency
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/minecraft-bot/src/pages/home.tsx` — responsive bot console UI
+- `artifacts/api-server/src/lib/minecraft-bot.ts` — in-memory Mineflayer session manager and log buffer
+- `artifacts/api-server/src/routes/bot.ts` — bot status, connection, disconnect, and chat endpoints
+- `lib/api-spec/openapi.yaml` — source of truth for bot API contracts
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Bot state and recent logs are intentionally in memory for a single live control session; no database is needed to operate the bot.
+- Mineflayer is externalized from the API bundle so Node loads its CommonJS runtime dependency directly.
+- The frontend polls status and logs so the control console remains useful without a WebSocket service.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Configure a Minecraft server target, bot username, version, and auth mode.
+- Connect or disconnect a Mineflayer bot from the browser.
+- Monitor connection state, health, protocol version, XYZ position, last event, and recent logs.
+- Send chat messages through the connected bot.
 
 ## User preferences
 

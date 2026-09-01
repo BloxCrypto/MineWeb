@@ -1,0 +1,1 @@
+- [Mineflayer bundling](mineflayer-bundling.md) — keep Mineflayer external to the API bundle and load it from the server runtime.
