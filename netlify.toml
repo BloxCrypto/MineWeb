@@ -1,0 +1,3 @@
+[build.environment]
+  PORT = "23418"
+  BASE_PATH = "/"
