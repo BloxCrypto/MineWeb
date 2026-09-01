@@ -54,6 +54,21 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/BotLog"
+  /bot/players:
+    get:
+      operationId: getBotPlayers
+      tags: [bot]
+      summary: Get players visible to the bot
+      description: Returns the names currently synchronized in the Mineflayer player map.
+      responses:
+        "200":
+          description: Visible players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotPlayer"
   /bot/connect:
     post:
       operationId: connectBot
@@ -120,6 +135,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /bot/command:
+    post:
+      operationId: runBotCommand
+      tags: [bot]
+      summary: Run a safe local bot command
+      description: Runs one of the supported operator commands such as goto, serverlist, or help.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotCommandInput"
+      responses:
+        "200":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotCommandResponse"
+        "400":
+          description: Invalid command
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Bot is not connected
           content:
@@ -179,6 +219,14 @@ components:
         message:
           type: string
       required: [id, timestamp, level, message]
+    BotPlayer:
+      type: object
+      properties:
+        username:
+          type: string
+        displayName:
+          type: ["string", "null"]
+      required: [username, displayName]
     BotConnectInput:
       type: object
       properties:
@@ -207,6 +255,22 @@ components:
           minLength: 1
           maxLength: 256
       required: [message]
+    BotCommandInput:
+      type: object
+      properties:
+        command:
+          type: string
+          minLength: 1
+          maxLength: 256
+      required: [command]
+    BotCommandResponse:
+      type: object
+      properties:
+        output:
+          type: string
+        status:
+          $ref: "#/components/schemas/BotStatus"
+      required: [output, status]
     ErrorResponse:
       type: object
       properties:

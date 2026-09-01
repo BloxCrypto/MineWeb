@@ -2,14 +2,19 @@ import { Router, type IRouter } from "express";
 import {
   ConnectBotBody,
   GetBotLogsResponse,
+  GetBotPlayersResponse,
   GetBotStatusResponse,
+  RunBotCommandBody,
+  RunBotCommandResponse,
   SendBotChatBody,
 } from "@workspace/api-zod";
 import {
   connectBot,
   disconnectBot,
   getBotLogs,
+  getBotPlayers,
   getBotStatus,
+  runBotCommand,
   sendBotChat,
 } from "../lib/minecraft-bot";
 
@@ -21,6 +26,10 @@ router.get("/bot/status", (_req, res) => {
 
 router.get("/bot/logs", (_req, res) => {
   res.json(GetBotLogsResponse.parse(getBotLogs()));
+});
+
+router.get("/bot/players", (_req, res) => {
+  res.json(GetBotPlayersResponse.parse(getBotPlayers()));
 });
 
 router.post("/bot/connect", (req, res) => {
@@ -55,6 +64,22 @@ router.post("/bot/chat", (req, res) => {
   } catch (error) {
     res.status(409).json({
       error: error instanceof Error ? error.message : "Bot is not connected.",
+    });
+  }
+});
+
+router.post("/bot/command", (req, res) => {
+  const parsed = RunBotCommandBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a supported bot command up to 256 characters." });
+    return;
+  }
+
+  try {
+    res.json(RunBotCommandResponse.parse(runBotCommand(parsed.data.command)));
+  } catch (error) {
+    res.status(409).json({
+      error: error instanceof Error ? error.message : "The bot could not run that command.",
     });
   }
 });

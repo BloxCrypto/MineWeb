@@ -1,6 +1,9 @@
 import * as mineflayer from "mineflayer";
 import type { Bot } from "mineflayer";
+import pathfinderPackage from "mineflayer-pathfinder";
 import { logger } from "./logger";
+
+const { Movements, goals, pathfinder } = pathfinderPackage;
 
 export type BotState = "offline" | "connecting" | "online" | "error";
 export type BotLogLevel = "info" | "success" | "warning" | "error" | "chat";
@@ -28,6 +31,16 @@ export interface BotLog {
   timestamp: string;
   level: BotLogLevel;
   message: string;
+}
+
+export interface BotPlayer {
+  username: string;
+  displayName: string | null;
+}
+
+export interface BotCommandResult {
+  output: string;
+  status: BotStatus;
 }
 
 export interface BotConnectSettings {
@@ -116,6 +129,7 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
       ...(nextSettings.version ? { version: nextSettings.version } : {}),
       hideErrors: true,
     });
+    bot.loadPlugin(pathfinder);
 
     bot.once("login", () => {
       state = "connecting";
@@ -128,6 +142,10 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
         "success",
         `Bot spawned in ${bot?.version ?? nextSettings.version ?? "server world"}`,
       );
+      if (bot?.pathfinder) {
+        bot.pathfinder.setMovements(new Movements(bot));
+        addLog("info", "Pathfinder ready for coordinate navigation");
+      }
     });
 
     bot.on("chat", (username, message) => {
@@ -190,4 +208,93 @@ export function sendBotChat(message: string): BotStatus {
   bot.chat(message);
   addLog("chat", `${bot.username}: ${message}`);
   return getBotStatus();
+}
+
+export function getBotPlayers(): BotPlayer[] {
+  if (!bot || state !== "online") return [];
+  return Object.values(bot.players)
+    .map((player) => ({
+      username: player.username,
+      displayName: player.displayName ? player.displayName.toString() : null,
+    }))
+    .sort((a, b) => a.username.localeCompare(b.username));
+}
+
+function requireOnlineBot(): Bot {
+  if (!bot || state !== "online") {
+    throw new Error("Bot is not connected");
+  }
+  return bot;
+}
+
+export function runBotCommand(command: string): BotCommandResult {
+  const currentBot = requireOnlineBot();
+  const normalized = command.trim().replace(/^!/, "");
+  const [name, ...args] = normalized.split(/\s+/);
+
+  if (name === "help") {
+    return {
+      output: "!say <message> · !goto <x> <y> <z> · !serverlist · !help",
+      status: getBotStatus(),
+    };
+  }
+
+  if (name === "serverlist") {
+    const players = getBotPlayers();
+    return {
+      output:
+        players.length > 0
+          ? `Visible players (${players.length}): ${players.map((player) => player.username).join(", ")}`
+          : "No players are synchronized yet.",
+      status: getBotStatus(),
+    };
+  }
+
+  if (name === "say") {
+    const message = args.join(" ").trim();
+    if (!message) throw new Error("Usage: !say <message>");
+    currentBot.chat(message);
+    addLog("chat", `${currentBot.username}: ${message}`);
+    return { output: `Sent to chat: ${message}`, status: getBotStatus() };
+  }
+
+  if (name === "goto") {
+    if (args.length !== 2 && args.length !== 3) {
+      throw new Error("Usage: !goto <x> <z> or !goto <x> <y> <z>");
+    }
+
+    const numbers = args.map(Number);
+    if (numbers.some((value) => !Number.isFinite(value))) {
+      throw new Error("Coordinates must be numbers.");
+    }
+
+    const x = numbers[0];
+    const z = args.length === 3 ? numbers[2] : numbers[1];
+    const y = args.length === 3 ? numbers[1] : currentBot.entity.position.y;
+    const target = {
+      x: Math.floor(x),
+      y: Math.floor(y),
+      z: Math.floor(z),
+    };
+
+    if (!currentBot.pathfinder) {
+      throw new Error("Pathfinder is not ready yet.");
+    }
+
+    void currentBot.pathfinder
+      .goto(new goals.GoalBlock(target.x, target.y, target.z))
+      .then(() => addLog("success", `Arrived at (${target.x}, ${target.y}, ${target.z})`))
+      .catch((error: unknown) =>
+        addLog(
+          "error",
+          `Pathfinder failed: ${error instanceof Error ? error.message : "unknown error"}`,
+        ),
+      );
+
+    const output = `Navigating to (${target.x}, ${target.y}, ${target.z})`;
+    addLog("info", output);
+    return { output, status: getBotStatus() };
+  }
+
+  throw new Error("Unknown command. Try !help.");
 }

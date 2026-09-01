@@ -21,8 +21,11 @@ import type {
 
 import type {
   BotChatInput,
+  BotCommandInput,
+  BotCommandResponse,
   BotConnectInput,
   BotLog,
+  BotPlayer,
   BotStatus,
   ErrorResponse,
   HealthStatus
@@ -289,6 +292,84 @@ export function useGetBotLogs<TData = Awaited<ReturnType<typeof getBotLogs>>, TE
 
 
 
+export const getGetBotPlayersUrl = () => {
+
+
+
+
+  return `/api/bot/players`
+}
+
+/**
+ * Returns the names currently synchronized in the Mineflayer player map.
+ * @summary Get players visible to the bot
+ */
+export const getBotPlayers = async ( options?: Parameters<typeof customFetch>[1]): Promise<BotPlayer[]> => {
+
+  return customFetch<BotPlayer[]>(getGetBotPlayersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBotPlayersQueryKey = () => {
+    return [
+    `/api/bot/players`
+    ] as const;
+    }
+
+
+export const getGetBotPlayersQueryOptions = <TData = Awaited<ReturnType<typeof getBotPlayers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBotPlayers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBotPlayersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBotPlayers>>> = ({ signal }) => getBotPlayers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBotPlayers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBotPlayersQueryResult = NonNullable<Awaited<ReturnType<typeof getBotPlayers>>>
+export type GetBotPlayersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get players visible to the bot
+ */
+
+export function useGetBotPlayers<TData = Awaited<ReturnType<typeof getBotPlayers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBotPlayers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBotPlayersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getConnectBotUrl = () => {
 
 
@@ -500,5 +581,77 @@ export const useSendBotChat = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getSendBotChatMutationOptions(options));
+    }
+
+export const getRunBotCommandUrl = () => {
+
+
+
+
+  return `/api/bot/command`
+}
+
+/**
+ * Runs one of the supported operator commands such as goto, serverlist, or help.
+ * @summary Run a safe local bot command
+ */
+export const runBotCommand = async (botCommandInput: BotCommandInput, options?: Parameters<typeof customFetch>[1]): Promise<BotCommandResponse> => {
+
+  return customFetch<BotCommandResponse>(getRunBotCommandUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(botCommandInput)
+  }
+);}
+
+
+
+
+
+export const getRunBotCommandMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBotCommand>>, TError,{data: BodyType<BotCommandInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runBotCommand>>, TError,{data: BodyType<BotCommandInput>}, TContext> => {
+
+const mutationKey = ['runBotCommand'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runBotCommand>>, {data: BodyType<BotCommandInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  runBotCommand(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunBotCommandMutationResult = NonNullable<Awaited<ReturnType<typeof runBotCommand>>>
+    export type RunBotCommandMutationBody = BodyType<BotCommandInput>
+    export type RunBotCommandMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Run a safe local bot command
+ */
+export const useRunBotCommand = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBotCommand>>, TError,{data: BodyType<BotCommandInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runBotCommand>>,
+        TError,
+        {data: BodyType<BotCommandInput>},
+        TContext
+      > => {
+      return useMutation(getRunBotCommandMutationOptions(options));
     }
 

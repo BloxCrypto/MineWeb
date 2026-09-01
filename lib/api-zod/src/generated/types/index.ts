@@ -7,10 +7,13 @@
  */
 
 export * from './botChatInput';
+export * from './botCommandInput';
+export * from './botCommandResponse';
 export * from './botConnectInput';
 export * from './botConnectInputAuth';
 export * from './botLog';
 export * from './botLogLevel';
+export * from './botPlayer';
 export * from './botStatus';
 export * from './botStatusPosition';
 export * from './botStatusState';

@@ -3,11 +3,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   BotConnectInputAuth,
   getGetBotLogsQueryKey,
+  getGetBotPlayersQueryKey,
   getGetBotStatusQueryKey,
   useConnectBot,
   useDisconnectBot,
   useGetBotLogs,
+  useGetBotPlayers,
   useGetBotStatus,
+  useRunBotCommand,
   useSendBotChat,
 } from '@workspace/api-client-react';
 import {
@@ -24,6 +27,7 @@ import {
   Copy,
   Cpu,
   Crosshair,
+  Compass,
   ExternalLink,
   Gamepad2,
   HeartPulse,
@@ -38,6 +42,7 @@ import {
   ShieldCheck,
   Terminal,
   Unplug,
+  Users,
   WifiOff,
   X,
   Zap,
@@ -132,11 +137,19 @@ function Home() {
   const connectBot = useConnectBot();
   const disconnectBot = useDisconnectBot();
   const sendChat = useSendBotChat();
+  const runCommand = useRunBotCommand();
 
   const status = statusQuery.data;
   const logs = logsQuery.data;
   const state: ConnectionState = status?.state ?? 'offline';
   const currentState = stateCopy[state];
+  const playersQuery = useGetBotPlayers({
+    query: {
+      queryKey: getGetBotPlayersQueryKey(),
+      refetchInterval: 7000,
+      enabled: state === 'online',
+    },
+  });
 
   const [host, setHost] = useState('localhost');
   const [port, setPort] = useState('25565');
@@ -144,6 +157,7 @@ function Home() {
   const [version, setVersion] = useState('');
   const [auth, setAuth] = useState<BotConnectInputAuth>(BotConnectInputAuth.offline);
   const [chatMessage, setChatMessage] = useState('');
+  const [command, setCommand] = useState('');
   const [copied, setCopied] = useState(false);
   const initializedFromStatus = useRef(false);
 
@@ -196,6 +210,22 @@ function Home() {
         invalidateSession();
       },
     });
+  };
+
+  const handleRunCommand = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = command.trim();
+    if (!value) return;
+    runCommand.mutate(
+      { data: { command: value } },
+      {
+        onSuccess: () => {
+          setCommand('');
+          invalidateSession();
+          void playersQuery.refetch();
+        },
+      },
+    );
   };
 
   const copyTarget = async () => {
@@ -426,6 +456,34 @@ function Home() {
                 </div>
               </form>
               {state !== 'online' && <div className="chat-note"><WifiOff size={13} /> Connect the bot to enable operator chat.</div>}
+              <div className="command-divider" />
+              <div className="command-heading">
+                <div>
+                  <span className="readout-label"><Compass size={14} /> LOCAL COMMANDS</span>
+                  <p>Run movement and utility commands from your script.</p>
+                </div>
+                <span className="panel-tag">SAFE SET</span>
+              </div>
+              {runCommand.isError && <div className="inline-error" role="alert" data-testid="error-command"><AlertTriangle size={15} /> {errorText(runCommand.error)}</div>}
+              <form className="command-form" onSubmit={handleRunCommand}>
+                <div className="command-input-wrap">
+                  <Command size={15} />
+                  <input value={command} onChange={(event) => setCommand(event.target.value.slice(0, 256))} placeholder="!goto 120 64 -30" maxLength={256} disabled={state !== 'online' || runCommand.isPending} data-testid="input-command" />
+                </div>
+                <button className="send-button command-submit" type="submit" disabled={!command.trim() || state !== 'online' || runCommand.isPending} data-testid="button-run-command">
+                  {runCommand.isPending ? <RefreshCw size={15} className="spin" /> : <Zap size={15} />}
+                  {runCommand.isPending ? 'Running…' : 'Run'}
+                </button>
+              </form>
+              <div className="quick-commands">
+                {['!serverlist', '!help'].map((quickCommand) => (
+                  <button key={quickCommand} type="button" onClick={() => setCommand(quickCommand)} disabled={state !== 'online'}>{quickCommand}</button>
+                ))}
+              </div>
+              <div className="players-strip">
+                <div className="players-strip-heading"><span className="readout-label"><Users size={14} /> VISIBLE PLAYERS</span><span>{playersQuery.isFetching ? 'syncing' : `${playersQuery.data?.length ?? 0} online`}</span></div>
+                {state !== 'online' ? <span className="players-empty">Connect to synchronize the lobby.</span> : playersQuery.isLoading ? <span className="players-empty">Reading player map…</span> : playersQuery.data?.length ? <div className="player-chips">{playersQuery.data.slice(0, 8).map((player) => <span key={player.username}>{player.username}</span>)}</div> : <span className="players-empty">No players synchronized yet.</span>}
+              </div>
             </section>
           </div>
 

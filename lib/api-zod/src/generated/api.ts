@@ -56,6 +56,17 @@ export const GetBotLogsResponse = zod.array(GetBotLogsResponseItem)
 
 
 /**
+ * Returns the names currently synchronized in the Mineflayer player map.
+ * @summary Get players visible to the bot
+ */
+export const GetBotPlayersResponseItem = zod.object({
+  "username": zod.string(),
+  "displayName": zod.string().nullable()
+})
+export const GetBotPlayersResponse = zod.array(GetBotPlayersResponseItem)
+
+
+/**
  * @summary Connect the Mineflayer bot
  */
 
@@ -147,6 +158,42 @@ export const SendBotChatResponse = zod.object({
 }).nullable(),
   "lastEvent": zod.string().nullable(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Runs one of the supported operator commands such as goto, serverlist, or help.
+ * @summary Run a safe local bot command
+ */
+export const runBotCommandBodyCommandMax = 256;
+
+
+
+export const RunBotCommandBody = zod.object({
+  "command": zod.string().min(1).max(runBotCommandBodyCommandMax)
+})
+
+export const runBotCommandResponseStatusPortMultipleOf = 1;
+
+
+
+export const RunBotCommandResponse = zod.object({
+  "output": zod.string(),
+  "status": zod.object({
+  "state": zod.enum(['offline', 'connecting', 'online', 'error']),
+  "username": zod.string().nullable(),
+  "host": zod.string().nullable(),
+  "port": zod.number().multipleOf(runBotCommandResponseStatusPortMultipleOf).nullable(),
+  "version": zod.string().nullable(),
+  "health": zod.number().nullable(),
+  "position": zod.object({
+  "x": zod.number(),
+  "y": zod.number(),
+  "z": zod.number()
+}).nullable(),
+  "lastEvent": zod.string().nullable(),
+  "updatedAt": zod.coerce.date()
+})
 })
 
 

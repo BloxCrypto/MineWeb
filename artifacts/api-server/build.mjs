@@ -84,6 +84,7 @@ async function buildAll() {
       "odbc",
       "piscina",
       "mineflayer",
+      "mineflayer-pathfinder",
       "realm",
       "ref-napi",
       "rocksdb",

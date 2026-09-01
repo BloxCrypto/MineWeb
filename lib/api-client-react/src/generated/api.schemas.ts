@@ -65,6 +65,12 @@ export interface BotLog {
   message: string;
 }
 
+export interface BotPlayer {
+  username: string;
+  /** @nullable */
+  displayName: string | null;
+}
+
 export type BotConnectInputAuth = typeof BotConnectInputAuth[keyof typeof BotConnectInputAuth];
 
 
@@ -94,6 +100,19 @@ export interface BotChatInput {
      * @maxLength 256
      */
   message: string;
+}
+
+export interface BotCommandInput {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  command: string;
+}
+
+export interface BotCommandResponse {
+  output: string;
+  status: BotStatus;
 }
 
 export interface ErrorResponse {
