@@ -148,8 +148,15 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
         addLog("info", "Pathfinder ready for coordinate navigation");
       }
       if (bot) {
-        startPrismarineViewer(bot);
-        addLog("success", "Live world viewer ready at /api/viewer/");
+        const viewerVersion = startPrismarineViewer(bot);
+        if (viewerVersion) {
+          addLog(
+            "success",
+            `Live world viewer ready at /api/viewer/ (assets: ${viewerVersion})`,
+          );
+        } else {
+          addLog("warning", "Live world viewer could not start for this server version");
+        }
       }
     });
 

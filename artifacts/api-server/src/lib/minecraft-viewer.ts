@@ -11,6 +11,7 @@ const viewerProxy = httpProxy.createProxyServer({ ws: true });
 const VIEWER_PORT = 8091;
 const VIEWER_TARGET = `http://127.0.0.1:${VIEWER_PORT}`;
 const VIEWER_PATH = "/api/viewer";
+const supportedViewerVersions = prismarineViewer.supportedVersions as string[];
 
 let viewerStarted = false;
 let viewerClose: (() => void) | null = null;
@@ -58,22 +59,62 @@ export function registerViewerProxy(app: Express, server: Server) {
   });
 }
 
-export function startPrismarineViewer(bot: Bot) {
+function getCompatibleViewerVersion(botVersion: string) {
+  if (supportedViewerVersions.includes(botVersion)) return botVersion;
+
+  const sameMajorMinor = botVersion.match(/^(\d+\.\d+)/)?.[1];
+  if (sameMajorMinor) {
+    const matchingVersions = supportedViewerVersions.filter((version) =>
+      version.startsWith(`${sameMajorMinor}.`),
+    );
+    if (matchingVersions.length > 0) {
+      return matchingVersions[matchingVersions.length - 1];
+    }
+  }
+
+  return supportedViewerVersions[supportedViewerVersions.length - 1] ?? null;
+}
+
+export function startPrismarineViewer(bot: Bot): string | null {
   stopPrismarineViewer();
 
   try {
-    prismarineViewer.mineflayer(bot, {
+    const viewerVersion = getCompatibleViewerVersion(bot.version);
+    if (!viewerVersion) {
+      logger.warn({ botVersion: bot.version }, "No compatible Prismarine viewer version found");
+      return null;
+    }
+
+    if (viewerVersion !== bot.version) {
+      logger.warn(
+        { botVersion: bot.version, viewerVersion },
+        "Using closest supported Prismarine viewer version",
+      );
+    }
+
+    // Prismarine Viewer reads bot.version when the browser connects. Keep the
+    // real Mineflayer bot untouched and expose only a compatible version to
+    // the viewer's event handlers.
+    const viewerBot = Object.create(bot) as Bot & {
+      version: string;
+      viewer?: { close?: () => void };
+    };
+    viewerBot.version = viewerVersion;
+
+    prismarineViewer.mineflayer(viewerBot, {
       port: VIEWER_PORT,
       viewDistance: 6,
       firstPerson: false,
     });
-    viewerClose = (bot as Bot & { viewer?: { close?: () => void } }).viewer?.close ?? null;
+    viewerClose = viewerBot.viewer?.close ?? null;
     viewerStarted = true;
-    logger.info({ port: VIEWER_PORT }, "Prismarine viewer started");
+    logger.info({ port: VIEWER_PORT, viewerVersion }, "Prismarine viewer started");
+    return viewerVersion;
   } catch (error) {
     viewerStarted = false;
     viewerClose = null;
     logger.error({ err: error }, "Unable to start Prismarine viewer");
+    return null;
   }
 }
 
