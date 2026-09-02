@@ -1,6 +1,5 @@
 import { createHash, createPublicKey, randomBytes, verify } from "node:crypto";
-import bcrypt from "bcryptjs";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, usersTable, sessionsTable, type User } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -216,24 +215,6 @@ export function createOpaqueValue() {
 export function safeReturnTo(value: unknown) {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) return "/";
   return value;
-}
-
-export async function registerWithPassword(username: string, password: string) {
-  const normalized = username.trim().toLowerCase();
-  if (!/^[a-z0-9_]{3,32}$/.test(normalized)) throw new Error("Username must be 3-32 letters, numbers, or underscores.");
-  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
-  const existing = await db.select().from(usersTable).where(or(eq(usersTable.username, normalized), eq(usersTable.email, normalized))).limit(1);
-  if (existing[0]) throw new Error("That username is already in use.");
-  const [user] = await db.insert(usersTable).values({ id: randomBytes(16).toString("hex"), username: normalized, email: null, passwordHash: await bcrypt.hash(password, 12) }).returning();
-  if (!user) throw new Error("Account could not be created.");
-  return createSession(toAuthUser(user));
-}
-
-export async function loginWithPassword(username: string, password: string) {
-  const normalized = username.trim().toLowerCase();
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.username, normalized)).limit(1);
-  if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) throw new Error("Invalid username or password.");
-  return createSession(toAuthUser(user));
 }
 
 export function getAuthOrigin(req: Request) {

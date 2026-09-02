@@ -17,9 +17,6 @@ import {
   getBotStatus,
   runBotCommand,
   sendBotChat,
-  getAntiAfkEnabled,
-  setAntiAfkEnabled,
-  reconnectBot,
 } from "../lib/minecraft-bot";
 import {
   createMinecraftAccount,
@@ -29,26 +26,6 @@ import {
 } from "../lib/minecraft-accounts";
 
 const router: IRouter = Router();
-
-router.get("/bot/settings", (_req, res) => {
-  res.json({ antiAfk: getAntiAfkEnabled() });
-});
-
-router.post("/bot/settings", (req, res) => {
-  if (typeof req.body?.antiAfk !== "boolean") {
-    res.status(400).json({ error: "antiAfk must be a boolean." });
-    return;
-  }
-  res.json({ antiAfk: setAntiAfkEnabled(req.body.antiAfk) });
-});
-
-router.post("/bot/reconnect", (_req, res) => {
-  try {
-    res.json(GetBotStatusResponse.parse(reconnectBot()));
-  } catch (error) {
-    res.status(409).json({ error: error instanceof Error ? error.message : "Unable to reconnect bot." });
-  }
-});
 
 router.get("/bot/accounts", async (_req, res) => {
   if (!_req.isAuthenticated()) {

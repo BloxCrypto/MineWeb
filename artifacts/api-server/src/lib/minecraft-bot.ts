@@ -53,35 +53,6 @@ export interface BotConnectSettings {
   offlinePassword?: string | null;
 }
 
-let antiAfkEnabled = false;
-let antiAfkTimer: ReturnType<typeof setInterval> | null = null;
-
-export function getAntiAfkEnabled() {
-  return antiAfkEnabled;
-}
-
-export function setAntiAfkEnabled(enabled: boolean) {
-  antiAfkEnabled = enabled;
-  if (antiAfkTimer) clearInterval(antiAfkTimer);
-  antiAfkTimer = null;
-  if (enabled && bot && state === "online") {
-    antiAfkTimer = setInterval(() => {
-      if (!bot || state !== "online") return;
-      const direction = Math.random() > 0.5 ? "forward" : "back";
-      bot.setControlState(direction, true);
-      setTimeout(() => bot?.setControlState(direction, false), 300 + Math.random() * 800);
-      addLog("info", "Anti-AFK movement pulse sent");
-    }, 30_000 + Math.random() * 30_000);
-  }
-  return antiAfkEnabled;
-}
-
-export function reconnectBot() {
-  if (!settings) throw new Error("Connect the bot once before reconnecting");
-  disconnectBot();
-  return connectBot(settings);
-}
-
 const MAX_LOGS = 200;
 
 let bot: Bot | null = null;
@@ -216,7 +187,6 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
         addLog("warning", "Live world viewer could not start for this server version");
       }
       scheduleOfflineAuth(currentBot, nextSettings.offlinePassword);
-      if (antiAfkEnabled) setAntiAfkEnabled(true);
     });
 
     currentBot.on("chat", (username, message) => {

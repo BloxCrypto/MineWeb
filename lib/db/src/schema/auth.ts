@@ -13,8 +13,6 @@ export const sessionsTable = pgTable(
 export const usersTable = pgTable("users", {
   id: varchar("id").primaryKey(),
   email: varchar("email"),
-  username: varchar("username", { length: 64 }).unique(),
-  passwordHash: varchar("password_hash", { length: 255 }),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),

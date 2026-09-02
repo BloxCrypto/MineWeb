@@ -12,23 +12,9 @@ import {
   getSessionId,
   safeReturnTo,
   setSessionCookie,
-  registerWithPassword,
-  loginWithPassword,
-  getSession,
 } from "../lib/auth";
 
 const router: IRouter = Router();
-
-router.post("/auth/register", async (req, res) => {
-  try { const sid = await registerWithPassword(String(req.body?.username ?? ""), String(req.body?.password ?? "")); setSessionCookie(res, sid); res.json({ user: (await getSession(sid))?.user ?? null }); }
-  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Unable to create account." }); }
-});
-
-router.post("/auth/login", async (req, res) => {
-  try { const sid = await loginWithPassword(String(req.body?.username ?? ""), String(req.body?.password ?? "")); setSessionCookie(res, sid); res.json({ user: (await getSession(sid))?.user ?? null }); }
-  catch { res.status(401).json({ error: "Invalid username or password." }); }
-});
-
 const OIDC_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
