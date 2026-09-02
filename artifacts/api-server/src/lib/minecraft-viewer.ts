@@ -10,6 +10,13 @@ import { logger } from "./logger";
 const require = createRequire(import.meta.url);
 const prismarineViewer = require("prismarine-viewer") as typeof import("prismarine-viewer");
 const viewerProxy = httpProxy.createProxyServer({ ws: true });
+// The viewer is intentionally embedded inside the authenticated control room.
+// Prismarine may emit framing policies for standalone pages, so remove only
+// those response headers at this same-origin proxy boundary.
+viewerProxy.on("proxyRes", (proxyRes) => {
+  delete proxyRes.headers["x-frame-options"];
+  delete proxyRes.headers["content-security-policy"];
+});
 const VIEWER_PORT = 8091;
 const VIEWER_TARGET = `http://127.0.0.1:${VIEWER_PORT}`;
 const VIEWER_PATH = "/api/viewer";
