@@ -1,5 +1,7 @@
 import { createRequire } from "node:module";
 import type { Server } from "node:http";
+import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 import type { Express, Request, Response } from "express";
 import httpProxy from "http-proxy";
 import type { Bot } from "mineflayer";
@@ -12,6 +14,14 @@ const VIEWER_PORT = 8091;
 const VIEWER_TARGET = `http://127.0.0.1:${VIEWER_PORT}`;
 const VIEWER_PATH = "/api/viewer";
 const supportedViewerVersions = prismarineViewer.supportedVersions as string[];
+const viewerPackageRoot = dirname(require.resolve("prismarine-viewer"));
+const mobileOptimizedViewerClient = readFileSync(
+  join(viewerPackageRoot, "public/index.js"),
+  "utf8",
+).replace(
+  "setPixelRatio(window.devicePixelRatio||1)",
+  "setPixelRatio(Math.min(window.devicePixelRatio||1,1.5))",
+);
 
 let viewerStarted = false;
 let viewerClose: (() => void) | null = null;
@@ -27,6 +37,11 @@ export function registerViewerProxy(app: Express, server: Server) {
   app.use(VIEWER_PATH, (req: Request, res: Response) => {
     if (!viewerStarted) {
       res.status(503).json({ error: "Connect the bot to start the live viewer." });
+      return;
+    }
+
+    if (req.path === "/index.js") {
+      res.type("application/javascript").set("Cache-Control", "no-cache").send(mobileOptimizedViewerClient);
       return;
     }
 
@@ -103,7 +118,7 @@ export function startPrismarineViewer(bot: Bot): string | null {
 
     prismarineViewer.mineflayer(viewerBot, {
       port: VIEWER_PORT,
-      viewDistance: 6,
+      viewDistance: 4,
       firstPerson: false,
     });
     viewerClose = viewerBot.viewer?.close ?? null;

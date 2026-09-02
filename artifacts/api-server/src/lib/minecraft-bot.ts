@@ -50,6 +50,7 @@ export interface BotConnectSettings {
   username: string;
   version?: string | null;
   auth: "offline" | "microsoft";
+  offlinePassword?: string | null;
 }
 
 const MAX_LOGS = 200;
@@ -61,6 +62,7 @@ let lastEvent: string | null = null;
 let updatedAt = new Date().toISOString();
 let sequence = 0;
 const logs: BotLog[] = [];
+let offlineAuthTimers: ReturnType<typeof setTimeout>[] = [];
 
 function touch() {
   updatedAt = new Date().toISOString();
@@ -78,6 +80,30 @@ function addLog(level: BotLogLevel, message: string) {
   lastEvent = message;
   touch();
   logger.info({ level, message }, "Mineflayer bot event");
+}
+
+function clearOfflineAuthTimers() {
+  for (const timer of offlineAuthTimers) clearTimeout(timer);
+  offlineAuthTimers = [];
+}
+
+function scheduleOfflineAuth(currentBot: Bot, password: string | null | undefined) {
+  if (settings?.auth !== "offline" || !password) return;
+
+  const registerTimer = setTimeout(() => {
+    if (bot !== currentBot || state !== "online") return;
+    currentBot.chat(`/register ${password} ${password}`);
+    addLog("info", "Sent automatic offline account registration check");
+
+    const loginTimer = setTimeout(() => {
+      if (bot !== currentBot || state !== "online") return;
+      currentBot.chat(`/login ${password}`);
+      addLog("info", "Sent automatic offline account login");
+    }, 1400);
+    offlineAuthTimers.push(loginTimer);
+  }, 1800);
+
+  offlineAuthTimers.push(registerTimer);
 }
 
 function safePosition(currentBot: Bot): BotPosition | null {
@@ -114,6 +140,7 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
   }
 
   settings = nextSettings;
+  clearOfflineAuthTimers();
   state = "connecting";
   touch();
   addLog(
@@ -157,6 +184,7 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
         } else {
           addLog("warning", "Live world viewer could not start for this server version");
         }
+        scheduleOfflineAuth(bot, nextSettings.offlinePassword);
       }
     });
 
@@ -186,6 +214,7 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
       if (state !== "error") state = "offline";
       addLog("warning", reason ? `Connection ended: ${reason}` : "Connection ended");
       stopPrismarineViewer();
+      clearOfflineAuthTimers();
       bot = null;
       touch();
     });
@@ -205,6 +234,7 @@ export function disconnectBot(): BotStatus {
   if (bot) {
     addLog("info", "Disconnecting bot");
     stopPrismarineViewer();
+    clearOfflineAuthTimers();
     bot.quit("Disconnected from the control console");
     bot = null;
   } else {

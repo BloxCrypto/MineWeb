@@ -1,1 +1,2 @@
 - [Mineflayer bundling](mineflayer-bundling.md) — keep Mineflayer external to the API bundle and load it from the server runtime.
+- [Workspace package installation](package-installation.md) — scope dependencies to the owning pnpm package; the generic installer targets the workspace root.

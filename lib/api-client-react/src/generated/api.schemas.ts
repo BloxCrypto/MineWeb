@@ -47,6 +47,55 @@ export interface BotStatus {
   updatedAt: string;
 }
 
+export type BotAccountAuth = typeof BotAccountAuth[keyof typeof BotAccountAuth];
+
+
+export const BotAccountAuth = {
+  offline: 'offline',
+  microsoft: 'microsoft',
+} as const;
+
+export interface BotAccount {
+  id: string;
+  label: string;
+  username: string;
+  auth: BotAccountAuth;
+  hasPassword: boolean;
+  createdAt: string;
+}
+
+export type BotAccountInputAuth = typeof BotAccountInputAuth[keyof typeof BotAccountInputAuth];
+
+
+export const BotAccountInputAuth = {
+  offline: 'offline',
+  microsoft: 'microsoft',
+} as const;
+
+export interface BotAccountInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  username: string;
+  auth: BotAccountInputAuth;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     * @pattern ^\S+$
+     */
+  password?: string;
+}
+
+export interface DeleteBotAccountResult {
+  deleted: boolean;
+}
+
 export type BotLogLevel = typeof BotLogLevel[keyof typeof BotLogLevel];
 
 
@@ -92,6 +141,8 @@ export interface BotConnectInput {
   /** @nullable */
   version?: string | null;
   auth: BotConnectInputAuth;
+  /** @nullable */
+  accountId?: string | null;
 }
 
 export interface BotChatInput {

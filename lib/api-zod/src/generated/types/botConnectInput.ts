@@ -20,4 +20,6 @@ export interface BotConnectInput {
   /** @nullable */
   version?: string | null;
   auth: BotConnectInputAuth;
+  /** @nullable */
+  accountId?: string | null;
 }

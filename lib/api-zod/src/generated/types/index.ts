@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './botAccount';
+export * from './botAccountAuth';
+export * from './botAccountInput';
+export * from './botAccountInputAuth';
 export * from './botChatInput';
 export * from './botCommandInput';
 export * from './botCommandResponse';
@@ -17,5 +21,6 @@ export * from './botPlayer';
 export * from './botStatus';
 export * from './botStatusPosition';
 export * from './botStatusState';
+export * from './deleteBotAccountResult';
 export * from './errorResponse';
 export * from './healthStatus';

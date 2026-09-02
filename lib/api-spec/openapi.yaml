@@ -39,6 +39,68 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BotStatus"
+  /bot/accounts:
+    get:
+      operationId: getBotAccounts
+      tags: [bot]
+      summary: List saved Minecraft accounts
+      description: Returns saved account summaries without passwords.
+      responses:
+        "200":
+          description: Saved account summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotAccount"
+    post:
+      operationId: createBotAccount
+      tags: [bot]
+      summary: Save a Minecraft account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotAccountInput"
+      responses:
+        "201":
+          description: Saved account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotAccount"
+        "400":
+          description: Invalid account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /bot/accounts/{accountId}:
+    delete:
+      operationId: deleteBotAccount
+      tags: [bot]
+      summary: Delete a saved Minecraft account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Account deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteBotAccountResult"
+        "404":
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /bot/logs:
     get:
       operationId: getBotLogs
@@ -205,6 +267,50 @@ components:
           type: string
           format: date-time
       required: [state, username, host, port, version, health, position, lastEvent, updatedAt]
+    BotAccount:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        username:
+          type: string
+        auth:
+          type: string
+          enum: [offline, microsoft]
+        hasPassword:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, label, username, auth, hasPassword, createdAt]
+    BotAccountInput:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 80
+        username:
+          type: string
+          minLength: 1
+          maxLength: 120
+        auth:
+          type: string
+          enum: [offline, microsoft]
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^\S+$'
+      required: [label, username, auth]
+    DeleteBotAccountResult:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+      required: [deleted]
     BotLog:
       type: object
       properties:
@@ -246,6 +352,8 @@ components:
         auth:
           type: string
           enum: [offline, microsoft]
+        accountId:
+          type: ["string", "null"]
       required: [host, port, username, auth]
     BotChatInput:
       type: object

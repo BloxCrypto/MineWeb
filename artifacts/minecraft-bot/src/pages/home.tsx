@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  BotAccountInputAuth,
   BotConnectInputAuth,
+  getGetBotAccountsQueryKey,
   getGetBotLogsQueryKey,
   getGetBotPlayersQueryKey,
   getGetBotStatusQueryKey,
   useConnectBot,
+  useCreateBotAccount,
+  useDeleteBotAccount,
   useDisconnectBot,
+  useGetBotAccounts,
   useGetBotLogs,
   useGetBotPlayers,
   useGetBotStatus,
   useRunBotCommand,
   useSendBotChat,
+  type BotAccount,
 } from '@workspace/api-client-react';
 import {
   Activity,
@@ -32,15 +38,19 @@ import {
   Gamepad2,
   HeartPulse,
   Layers3,
+  LockKeyhole,
   MessageSquare,
   MoreHorizontal,
+  Plus,
   Radio,
   RefreshCw,
   Send,
   Server,
   Settings2,
   ShieldCheck,
+  Smartphone,
   Terminal,
+  Trash2,
   Unplug,
   Users,
   WifiOff,
@@ -122,6 +132,11 @@ function Skeleton({ className = '' }: { className?: string }) {
 
 function Home() {
   const queryClient = useQueryClient();
+  const accountsQuery = useGetBotAccounts({
+    query: {
+      queryKey: getGetBotAccountsQueryKey(),
+    },
+  });
   const statusQuery = useGetBotStatus({
     query: {
       queryKey: getGetBotStatusQueryKey(),
@@ -135,6 +150,8 @@ function Home() {
     },
   });
   const connectBot = useConnectBot();
+  const createAccount = useCreateBotAccount();
+  const deleteAccount = useDeleteBotAccount();
   const disconnectBot = useDisconnectBot();
   const sendChat = useSendBotChat();
   const runCommand = useRunBotCommand();
@@ -156,10 +173,54 @@ function Home() {
   const [username, setUsername] = useState('OperatorBot');
   const [version, setVersion] = useState('');
   const [auth, setAuth] = useState<BotConnectInputAuth>(BotConnectInputAuth.offline);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [accountAuth, setAccountAuth] = useState<BotAccountInputAuth>(BotAccountInputAuth.offline);
+  const [accountLabel, setAccountLabel] = useState('');
+  const [accountUsername, setAccountUsername] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [cachedAccounts, setCachedAccounts] = useState<BotAccount[]>([]);
   const [chatMessage, setChatMessage] = useState('');
   const [command, setCommand] = useState('');
   const [copied, setCopied] = useState(false);
   const initializedFromStatus = useRef(false);
+
+  useEffect(() => {
+    try {
+      const cached = window.localStorage.getItem('minecraft-console:accounts');
+      const selected = window.localStorage.getItem('minecraft-console:selected-account');
+      if (cached) {
+        const parsed = JSON.parse(cached) as BotAccount[];
+        if (Array.isArray(parsed)) setCachedAccounts(parsed);
+      }
+      if (selected) setSelectedAccountId(selected);
+    } catch {
+      // Local storage is an enhancement; the server remains the source of truth.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!accountsQuery.data) return;
+    setCachedAccounts(accountsQuery.data);
+    try {
+      window.localStorage.setItem('minecraft-console:accounts', JSON.stringify(accountsQuery.data));
+    } catch {
+      // Continue using the server-backed list when browser storage is unavailable.
+    }
+  }, [accountsQuery.data]);
+
+  useEffect(() => {
+    try {
+      if (selectedAccountId) {
+        window.localStorage.setItem('minecraft-console:selected-account', selectedAccountId);
+      } else {
+        window.localStorage.removeItem('minecraft-console:selected-account');
+      }
+    } catch {
+      // Selection still works for the current session when storage is unavailable.
+    }
+  }, [selectedAccountId]);
+
+  const accounts = accountsQuery.data ?? cachedAccounts;
 
   useEffect(() => {
     if (!status || initializedFromStatus.current) return;
@@ -175,6 +236,11 @@ function Home() {
     return `${safeHost}:${port || '—'}`;
   }, [host, port]);
 
+  const selectedAccount = useMemo(
+    () => accounts.find((account) => account.id === selectedAccountId),
+    [accounts, selectedAccountId],
+  );
+
   const invalidateSession = () => {
     void queryClient.invalidateQueries({ queryKey: getGetBotStatusQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getGetBotLogsQueryKey() });
@@ -187,12 +253,66 @@ function Home() {
         data: {
           host: host.trim(),
           port: Number(port),
-          username: username.trim(),
+          username: (selectedAccount?.username ?? username).trim(),
           version: version.trim() || null,
-          auth,
+          auth: selectedAccount?.auth ?? auth,
+          accountId: selectedAccountId || null,
         },
       },
       { onSuccess: invalidateSession },
+    );
+  };
+
+  const handleAccountSelect = (accountId: string) => {
+    setSelectedAccountId(accountId);
+    const account = accounts.find((item) => item.id === accountId);
+    if (!account) return;
+    setUsername(account.username);
+    setAuth(account.auth);
+    void queryClient.invalidateQueries({ queryKey: getGetBotStatusQueryKey() });
+  };
+
+  const handleCreateAccount = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const label = accountLabel.trim();
+    const accountName = accountUsername.trim();
+    if (!label || !accountName || (accountAuth === BotAccountInputAuth.offline && !accountPassword.trim())) return;
+    createAccount.mutate(
+      {
+        data: {
+          label,
+          username: accountName,
+          auth: accountAuth,
+          ...(accountAuth === BotAccountInputAuth.offline ? { password: accountPassword.trim() } : {}),
+        },
+      },
+      {
+        onSuccess: (account) => {
+          void queryClient.invalidateQueries({ queryKey: getGetBotAccountsQueryKey() });
+          setSelectedAccountId(account.id);
+          setUsername(account.username);
+          setAuth(account.auth);
+          setAccountLabel('');
+          setAccountUsername('');
+          setAccountPassword('');
+        },
+      },
+    );
+  };
+
+  const handleDeleteAccount = (accountId: string, label: string) => {
+    if (!window.confirm(`Delete saved identity “${label}”?`)) return;
+    deleteAccount.mutate(
+      { accountId },
+      {
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: getGetBotAccountsQueryKey() });
+          if (selectedAccountId === accountId) {
+            setSelectedAccountId('');
+            setAuth(BotConnectInputAuth.offline);
+          }
+        },
+      },
     );
   };
 
@@ -327,6 +447,123 @@ function Home() {
             <StatusPill state={state} />
           </div>
 
+          <section className="panel accounts-panel reveal delay-2">
+            <div className="panel-head">
+              <SectionLabel icon={LockKeyhole} eyebrow="IDENTITIES / SAVED" title="Account library" />
+              <span className="panel-tag" data-testid="text-account-count">{accounts.length} SAVED</span>
+            </div>
+            <div className="accounts-layout">
+              <div className="accounts-list" data-testid="list-accounts">
+                {accountsQuery.isLoading && accounts.length === 0 ? (
+                  <div className="account-loading" data-testid="loading-accounts">
+                    <Skeleton /><Skeleton /><Skeleton />
+                  </div>
+                ) : accountsQuery.isError && accounts.length === 0 ? (
+                  <div className="state-empty state-error accounts-error" role="alert" data-testid="error-accounts">
+                    <AlertTriangle size={18} />
+                    <strong>Identity library unavailable</strong>
+                    <span>{errorText(accountsQuery.error)}</span>
+                    <button type="button" onClick={() => void accountsQuery.refetch()} data-testid="button-retry-accounts">Retry library</button>
+                  </div>
+                ) : accounts.length ? (
+                  accounts.map((account) => (
+                    <div className={`account-row ${selectedAccountId === account.id ? 'account-row-selected' : ''}`} key={account.id} data-testid={`row-account-${account.id}`}>
+                      <button
+                        type="button"
+                        className="account-select"
+                        onClick={() => handleAccountSelect(account.id)}
+                        aria-pressed={selectedAccountId === account.id}
+                        data-testid={`button-select-account-${account.id}`}
+                      >
+                        <span className="account-glyph">{account.auth === 'microsoft' ? <Smartphone size={15} /> : <AtSign size={15} />}</span>
+                        <span className="account-copy">
+                          <span className="account-label" data-testid={`text-account-label-${account.id}`}>{account.label}</span>
+                          <span className="account-username" data-testid={`text-account-username-${account.id}`}>{account.username}</span>
+                        </span>
+                        <span className="account-badge" data-testid={`text-account-auth-${account.id}`}>{account.auth}</span>
+                        {selectedAccountId === account.id && <Check size={15} className="account-selected-mark" />}
+                      </button>
+                      <button
+                        type="button"
+                        className="account-delete"
+                        onClick={() => handleDeleteAccount(account.id, account.label)}
+                        disabled={deleteAccount.isPending}
+                        aria-label={`Delete ${account.label}`}
+                        data-testid={`button-delete-account-${account.id}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="accounts-empty" data-testid="empty-accounts">
+                    <LockKeyhole size={18} />
+                    <strong>No saved identities yet</strong>
+                    <span>Save an offline or Microsoft identity for one-tap connection.</span>
+                  </div>
+                )}
+              </div>
+              <form className="account-create" onSubmit={handleCreateAccount}>
+                <div className="account-create-head">
+                  <span className="account-create-title">Save an identity</span>
+                  <Plus size={16} color="hsl(var(--primary))" />
+                </div>
+                <div className="account-auth-tabs" role="tablist" aria-label="Saved account authentication">
+                  <button
+                    type="button"
+                    className={`account-auth-tab ${accountAuth === BotAccountInputAuth.offline ? 'account-auth-tab-selected' : ''}`}
+                    onClick={() => setAccountAuth(BotAccountInputAuth.offline)}
+                    aria-selected={accountAuth === BotAccountInputAuth.offline}
+                    data-testid="button-account-auth-offline"
+                  >
+                    <AtSign size={14} /> Offline
+                  </button>
+                  <button
+                    type="button"
+                    className={`account-auth-tab ${accountAuth === BotAccountInputAuth.microsoft ? 'account-auth-tab-selected' : ''}`}
+                    onClick={() => { setAccountAuth(BotAccountInputAuth.microsoft); setAccountPassword(''); }}
+                    aria-selected={accountAuth === BotAccountInputAuth.microsoft}
+                    data-testid="button-account-auth-microsoft"
+                  >
+                    <Smartphone size={14} /> Microsoft
+                  </button>
+                </div>
+                <div className="account-form">
+                  <label className="field">
+                    <span>ACCOUNT LABEL</span>
+                    <div className="field-wrap"><LockKeyhole size={14} /><input value={accountLabel} onChange={(event) => setAccountLabel(event.target.value)} maxLength={80} placeholder="Build operator" required data-testid="input-account-label" /></div>
+                  </label>
+                  <label className="field">
+                    <span>MINECRAFT USERNAME</span>
+                    <div className="field-wrap"><AtSign size={14} /><input value={accountUsername} onChange={(event) => setAccountUsername(event.target.value)} maxLength={120} placeholder="OperatorBot" autoComplete="username" required data-testid="input-account-username" /></div>
+                  </label>
+                  {accountAuth === BotAccountInputAuth.offline ? (
+                    <>
+                      <label className="field">
+                        <span>OFFLINE PASSWORD</span>
+                        <div className="field-wrap"><ShieldCheck size={14} /><input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} minLength={1} maxLength={128} placeholder="Required for saved offline auth" autoComplete="new-password" required data-testid="input-account-password" /></div>
+                      </label>
+                      <div className="account-security-copy" data-testid="text-offline-security">
+                        <ShieldCheck size={14} />
+                        <span>Stored only as a protected credential for this bot service. Use a dedicated offline password, not a personal password.</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="account-security-copy" data-testid="text-microsoft-oauth">
+                      <Smartphone size={14} />
+                      <span>Microsoft sign-in uses the confirmed device-code/OAuth flow. Continue in the system browser; no Microsoft password is requested or stored.</span>
+                    </div>
+                  )}
+                  {createAccount.isError && <div className="inline-error account-form-error" role="alert" data-testid="error-create-account"><AlertTriangle size={14} /> {errorText(createAccount.error)}</div>}
+                  <button className="primary-button account-create-submit" type="submit" disabled={createAccount.isPending} data-testid="button-create-account">
+                    {createAccount.isPending ? <RefreshCw size={15} className="spin" /> : <Plus size={15} />}
+                    {createAccount.isPending ? 'Saving identity…' : 'Save identity'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+
           <div className="dashboard-grid">
             <section className="panel config-panel reveal delay-2">
               <div className="panel-head">
@@ -334,6 +571,17 @@ function Home() {
                 <span className="panel-tag">INPUT</span>
               </div>
               <form onSubmit={handleConnect} className="config-form">
+                <label className="field">
+                  <span>SAVED IDENTITY <i>OPTIONAL</i></span>
+                  <div className="select-account-wrap">
+                    <select value={selectedAccountId} onChange={(event) => handleAccountSelect(event.target.value)} data-testid="select-account">
+                      <option value="">Manual connection</option>
+                      {accounts.map((account) => <option value={account.id} key={account.id}>{account.label} · {account.username}</option>)}
+                    </select>
+                    <ChevronDown size={14} />
+                  </div>
+                  <span className="field-hint">{selectedAccount ? `${selectedAccount.auth} identity selected for this connection.` : 'Enter credentials in the target fields below.'}</span>
+                </label>
                 <label className="field">
                   <span>SERVER ADDRESS</span>
                   <div className="field-wrap"><Server size={15} /><input value={host} onChange={(event) => setHost(event.target.value)} placeholder="play.example.net" data-testid="input-host" required /></div>
@@ -417,10 +665,11 @@ function Home() {
             <div className="panel-head">
               <SectionLabel icon={Gamepad2} eyebrow="03 / WORLD VIEW" title="Prismarine viewer" />
               <div className="viewer-head-actions">
-                <span className={`viewer-status ${state === 'online' ? 'viewer-status-live' : ''}`}><span /> {state === 'online' ? 'LIVE FEED' : 'WAITING FOR BOT'}</span>
+                <span className={`viewer-status ${state === 'online' ? 'viewer-status-live' : ''}`} data-testid="status-viewer"><span /> {state === 'online' ? 'LIVE FEED' : 'WAITING FOR BOT'}</span>
                 {state === 'online' && <a className="text-button" href="/api/viewer/" target="_blank" rel="noreferrer" data-testid="link-open-viewer"><ExternalLink size={14} /> Open</a>}
               </div>
             </div>
+            <div className="viewer-note" data-testid="text-viewer-mobile-note"><Smartphone size={14} /> Mobile render profile active: the server adapts viewport density and controls for smaller screens.</div>
             <div className="viewer-shell">
               {state === 'online' ? (
                 <iframe className="viewer-frame" src="/api/viewer/" title="Live Minecraft world viewer" data-testid="iframe-viewer" />
@@ -498,7 +747,7 @@ function Home() {
               </form>
               <div className="quick-commands">
                 {['!serverlist', '!help'].map((quickCommand) => (
-                  <button key={quickCommand} type="button" onClick={() => setCommand(quickCommand)} disabled={state !== 'online'}>{quickCommand}</button>
+                  <button key={quickCommand} type="button" onClick={() => setCommand(quickCommand)} disabled={state !== 'online'} data-testid={`button-quick-command-${quickCommand.slice(1)}`}>{quickCommand}</button>
                 ))}
               </div>
               <div className="players-strip">

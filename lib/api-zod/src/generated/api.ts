@@ -43,6 +43,63 @@ export const GetBotStatusResponse = zod.object({
 
 
 /**
+ * Returns saved account summaries without passwords.
+ * @summary List saved Minecraft accounts
+ */
+export const GetBotAccountsResponseItem = zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "username": zod.string(),
+  "auth": zod.enum(['offline', 'microsoft']),
+  "hasPassword": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const GetBotAccountsResponse = zod.array(GetBotAccountsResponseItem)
+
+
+/**
+ * @summary Save a Minecraft account
+ */
+export const createBotAccountBodyLabelMax = 80;
+
+export const createBotAccountBodyUsernameMax = 120;
+
+export const createBotAccountBodyPasswordMax = 128;
+
+
+export const createBotAccountBodyPasswordRegExp = new RegExp('^\\S+$');
+
+
+export const CreateBotAccountBody = zod.object({
+  "label": zod.string().min(1).max(createBotAccountBodyLabelMax),
+  "username": zod.string().min(1).max(createBotAccountBodyUsernameMax),
+  "auth": zod.enum(['offline', 'microsoft']),
+  "password": zod.string().min(1).max(createBotAccountBodyPasswordMax).regex(createBotAccountBodyPasswordRegExp).optional()
+})
+
+export const CreateBotAccountResponse = zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "username": zod.string(),
+  "auth": zod.enum(['offline', 'microsoft']),
+  "hasPassword": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a saved Minecraft account
+ */
+export const DeleteBotAccountParams = zod.object({
+  "accountId": zod.coerce.string()
+})
+
+export const DeleteBotAccountResponse = zod.object({
+  "deleted": zod.boolean()
+})
+
+
+/**
  * Returns recent connection, chat, and error events from the in-memory bot session.
  * @summary Get recent bot logs
  */
@@ -81,7 +138,8 @@ export const ConnectBotBody = zod.object({
   "port": zod.number().min(1).max(connectBotBodyPortMax).multipleOf(connectBotBodyPortMultipleOf),
   "username": zod.string().min(1),
   "version": zod.string().nullish(),
-  "auth": zod.enum(['offline', 'microsoft'])
+  "auth": zod.enum(['offline', 'microsoft']),
+  "accountId": zod.string().nullish()
 })
 
 export const connectBotResponsePortMultipleOf = 1;

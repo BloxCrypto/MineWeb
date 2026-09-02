@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BotAccount,
+  BotAccountInput,
   BotChatInput,
   BotCommandInput,
   BotCommandResponse,
@@ -27,6 +29,7 @@ import type {
   BotLog,
   BotPlayer,
   BotStatus,
+  DeleteBotAccountResult,
   ErrorResponse,
   HealthStatus
 } from './api.schemas';
@@ -213,6 +216,226 @@ export function useGetBotStatus<TData = Awaited<ReturnType<typeof getBotStatus>>
 
 
 
+
+export const getGetBotAccountsUrl = () => {
+
+
+
+
+  return `/api/bot/accounts`
+}
+
+/**
+ * Returns saved account summaries without passwords.
+ * @summary List saved Minecraft accounts
+ */
+export const getBotAccounts = async ( options?: Parameters<typeof customFetch>[1]): Promise<BotAccount[]> => {
+
+  return customFetch<BotAccount[]>(getGetBotAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBotAccountsQueryKey = () => {
+    return [
+    `/api/bot/accounts`
+    ] as const;
+    }
+
+
+export const getGetBotAccountsQueryOptions = <TData = Awaited<ReturnType<typeof getBotAccounts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBotAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBotAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBotAccounts>>> = ({ signal }) => getBotAccounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBotAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBotAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof getBotAccounts>>>
+export type GetBotAccountsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List saved Minecraft accounts
+ */
+
+export function useGetBotAccounts<TData = Awaited<ReturnType<typeof getBotAccounts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBotAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBotAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBotAccountUrl = () => {
+
+
+
+
+  return `/api/bot/accounts`
+}
+
+/**
+ * @summary Save a Minecraft account
+ */
+export const createBotAccount = async (botAccountInput: BotAccountInput, options?: Parameters<typeof customFetch>[1]): Promise<BotAccount> => {
+
+  return customFetch<BotAccount>(getCreateBotAccountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(botAccountInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBotAccountMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBotAccount>>, TError,{data: BodyType<BotAccountInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBotAccount>>, TError,{data: BodyType<BotAccountInput>}, TContext> => {
+
+const mutationKey = ['createBotAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBotAccount>>, {data: BodyType<BotAccountInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBotAccount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBotAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createBotAccount>>>
+    export type CreateBotAccountMutationBody = BodyType<BotAccountInput>
+    export type CreateBotAccountMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Save a Minecraft account
+ */
+export const useCreateBotAccount = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBotAccount>>, TError,{data: BodyType<BotAccountInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBotAccount>>,
+        TError,
+        {data: BodyType<BotAccountInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBotAccountMutationOptions(options));
+    }
+
+export const getDeleteBotAccountUrl = (accountId: string,) => {
+
+
+
+
+  return `/api/bot/accounts/${accountId}`
+}
+
+/**
+ * @summary Delete a saved Minecraft account
+ */
+export const deleteBotAccount = async (accountId: string, options?: Parameters<typeof customFetch>[1]): Promise<DeleteBotAccountResult> => {
+
+  return customFetch<DeleteBotAccountResult>(getDeleteBotAccountUrl(accountId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteBotAccountMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBotAccount>>, TError,{accountId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBotAccount>>, TError,{accountId: string}, TContext> => {
+
+const mutationKey = ['deleteBotAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBotAccount>>, {accountId: string}> = (props) => {
+          const {accountId} = props ?? {};
+
+          return  deleteBotAccount(accountId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBotAccountMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBotAccount>>>
+
+    export type DeleteBotAccountMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a saved Minecraft account
+ */
+export const useDeleteBotAccount = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBotAccount>>, TError,{accountId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBotAccount>>,
+        TError,
+        {accountId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteBotAccountMutationOptions(options));
+    }
 
 export const getGetBotLogsUrl = () => {
 
