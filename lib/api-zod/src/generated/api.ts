@@ -88,6 +88,20 @@ export const CreateBotAccountResponse = zod.object({
 
 
 /**
+ * @summary Get the current signed-in user
+ */
+export const GetCurrentAuthUserResponse = zod.object({
+  "user": zod.union([zod.object({
+  "id": zod.string(),
+  "email": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
  * @summary Delete a saved Minecraft account
  */
 export const DeleteBotAccountParams = zod.object({

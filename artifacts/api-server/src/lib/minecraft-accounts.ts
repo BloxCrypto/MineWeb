@@ -1,5 +1,5 @@
 import { randomBytes, scryptSync, createCipheriv, createDecipheriv } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, minecraftAccountsTable, type MinecraftAccount } from "@workspace/db";
 
 export type MinecraftAccountAuth = "offline" | "microsoft";
@@ -70,15 +70,17 @@ function toSummary(account: MinecraftAccount): MinecraftAccountSummary {
   };
 }
 
-export async function listMinecraftAccounts() {
+export async function listMinecraftAccounts(ownerId: string) {
   const accounts = await db
     .select()
     .from(minecraftAccountsTable)
+    .where(eq(minecraftAccountsTable.ownerId, ownerId))
     .orderBy(desc(minecraftAccountsTable.createdAt));
   return accounts.map(toSummary);
 }
 
 export async function createMinecraftAccount(input: {
+  ownerId: string;
   label: string;
   username: string;
   auth: MinecraftAccountAuth;
@@ -94,6 +96,7 @@ export async function createMinecraftAccount(input: {
   const [account] = await db
     .insert(minecraftAccountsTable)
     .values({
+      ownerId: input.ownerId,
       label: input.label.trim(),
       username: input.username.trim(),
       auth: input.auth,
@@ -105,19 +108,21 @@ export async function createMinecraftAccount(input: {
   return toSummary(account);
 }
 
-export async function deleteMinecraftAccount(id: string) {
+export async function deleteMinecraftAccount(id: string, ownerId: string) {
   const deleted = await db
     .delete(minecraftAccountsTable)
-    .where(eq(minecraftAccountsTable.id, id))
+    .where(
+      and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)),
+    )
     .returning({ id: minecraftAccountsTable.id });
   return deleted.length > 0;
 }
 
-export async function getMinecraftAccountCredentials(id: string): Promise<MinecraftAccountCredentials> {
+export async function getMinecraftAccountCredentials(id: string, ownerId: string): Promise<MinecraftAccountCredentials> {
   const [account] = await db
     .select()
     .from(minecraftAccountsTable)
-    .where(eq(minecraftAccountsTable.id, id))
+    .where(and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)))
     .limit(1);
 
   if (!account) throw new Error("Saved Minecraft account was not found.");

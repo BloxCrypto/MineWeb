@@ -1,7 +1,8 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 export const minecraftAccountsTable = pgTable("minecraft_accounts", {
   id: uuid("id").defaultRandom().primaryKey(),
+  ownerId: varchar("owner_id").notNull(),
   label: text("label").notNull(),
   username: text("username").notNull(),
   auth: text("auth").notNull(),

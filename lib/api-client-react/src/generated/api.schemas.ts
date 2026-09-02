@@ -96,6 +96,22 @@ export interface DeleteBotAccountResult {
   deleted: boolean;
 }
 
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
 export type BotLogLevel = typeof BotLogLevel[keyof typeof BotLogLevel];
 
 

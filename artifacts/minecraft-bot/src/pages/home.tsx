@@ -38,6 +38,8 @@ import {
   Gamepad2,
   HeartPulse,
   Layers3,
+  LogIn,
+  LogOut,
   LockKeyhole,
   MessageSquare,
   MoreHorizontal,
@@ -57,6 +59,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { useAuth } from '@workspace/replit-auth-web';
 
 type ConnectionState = 'offline' | 'connecting' | 'online' | 'error';
 
@@ -132,9 +135,11 @@ function Skeleton({ className = '' }: { className?: string }) {
 
 function Home() {
   const queryClient = useQueryClient();
+  const { user, isLoading: authLoading, isAuthenticated, login, logout } = useAuth();
   const accountsQuery = useGetBotAccounts({
     query: {
       queryKey: getGetBotAccountsQueryKey(),
+      enabled: isAuthenticated,
     },
   });
   const statusQuery = useGetBotStatus({
@@ -185,9 +190,14 @@ function Home() {
   const initializedFromStatus = useRef(false);
 
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setCachedAccounts([]);
+      setSelectedAccountId('');
+      return;
+    }
     try {
-      const cached = window.localStorage.getItem('minecraft-console:accounts');
-      const selected = window.localStorage.getItem('minecraft-console:selected-account');
+      const cached = window.localStorage.getItem(`minecraft-console:accounts:${user.id}`);
+      const selected = window.localStorage.getItem(`minecraft-console:selected-account:${user.id}`);
       if (cached) {
         const parsed = JSON.parse(cached) as BotAccount[];
         if (Array.isArray(parsed)) setCachedAccounts(parsed);
@@ -196,31 +206,32 @@ function Home() {
     } catch {
       // Local storage is an enhancement; the server remains the source of truth.
     }
-  }, []);
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
-    if (!accountsQuery.data) return;
+    if (!accountsQuery.data || !user?.id) return;
     setCachedAccounts(accountsQuery.data);
     try {
-      window.localStorage.setItem('minecraft-console:accounts', JSON.stringify(accountsQuery.data));
+      window.localStorage.setItem(`minecraft-console:accounts:${user.id}`, JSON.stringify(accountsQuery.data));
     } catch {
       // Continue using the server-backed list when browser storage is unavailable.
     }
-  }, [accountsQuery.data]);
+  }, [accountsQuery.data, user?.id]);
 
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
     try {
       if (selectedAccountId) {
-        window.localStorage.setItem('minecraft-console:selected-account', selectedAccountId);
+        window.localStorage.setItem(`minecraft-console:selected-account:${user.id}`, selectedAccountId);
       } else {
-        window.localStorage.removeItem('minecraft-console:selected-account');
+        window.localStorage.removeItem(`minecraft-console:selected-account:${user.id}`);
       }
     } catch {
       // Selection still works for the current session when storage is unavailable.
     }
-  }, [selectedAccountId]);
+  }, [isAuthenticated, selectedAccountId, user?.id]);
 
-  const accounts = accountsQuery.data ?? cachedAccounts;
+  const accounts = isAuthenticated ? (accountsQuery.data ?? cachedAccounts) : [];
 
   useEffect(() => {
     if (!status || initializedFromStatus.current) return;
@@ -410,7 +421,18 @@ function Home() {
           <div className="topbar-actions">
             <span className="polling-label"><span className="polling-dot" /> auto-refresh 4s</span>
             <button className="icon-button" type="button" onClick={() => void statusQuery.refetch()} aria-label="Refresh status" data-testid="button-refresh-status"><RefreshCw size={16} className={statusQuery.isFetching ? 'spin' : ''} /></button>
-            <button className="avatar-button" type="button" aria-label="Operator menu" data-testid="button-operator-menu">OP</button>
+            {authLoading ? (
+              <button className="avatar-button" type="button" disabled aria-label="Loading sign-in" data-testid="button-auth-loading">…</button>
+            ) : isAuthenticated ? (
+              <button className="auth-user-button" type="button" onClick={logout} aria-label="Log out" title={user?.email ?? 'Signed-in operator'} data-testid="button-logout">
+                <LogOut size={14} />
+                <span>{user?.firstName || user?.email || 'Signed in'}</span>
+              </button>
+            ) : (
+              <button className="primary-button auth-login-button" type="button" onClick={login} data-testid="button-login">
+                <LogIn size={14} /> Sign in
+              </button>
+            )}
           </div>
         </header>
 
@@ -452,6 +474,22 @@ function Home() {
               <SectionLabel icon={LockKeyhole} eyebrow="IDENTITIES / SAVED" title="Account library" />
               <span className="panel-tag" data-testid="text-account-count">{accounts.length} SAVED</span>
             </div>
+            {authLoading ? (
+              <div className="auth-gate" data-testid="loading-auth">
+                <RefreshCw size={18} className="spin" />
+                <strong>Checking sign-in</strong>
+                <span>Loading your saved identity library.</span>
+              </div>
+            ) : !isAuthenticated ? (
+              <div className="auth-gate" data-testid="auth-gate">
+                <LockKeyhole size={19} />
+                <strong>Sign in to access saved identities</strong>
+                <span>Your Minecraft accounts are stored securely on the server and return after local storage is cleared.</span>
+                <button className="primary-button auth-gate-button" type="button" onClick={login} data-testid="button-login-account-library">
+                  <LogIn size={15} /> Sign in / create account
+                </button>
+              </div>
+            ) : (
             <div className="accounts-layout">
               <div className="accounts-list" data-testid="list-accounts">
                 {accountsQuery.isLoading && accounts.length === 0 ? (
@@ -562,6 +600,7 @@ function Home() {
                 </div>
               </form>
             </div>
+            )}
           </section>
 
           <div className="dashboard-grid">

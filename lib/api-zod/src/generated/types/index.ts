@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './authUser';
+export * from './authUserEnvelope';
 export * from './botAccount';
 export * from './botAccountAuth';
 export * from './botAccountInput';

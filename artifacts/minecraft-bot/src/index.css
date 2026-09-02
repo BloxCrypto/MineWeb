@@ -674,6 +674,15 @@ button:disabled, textarea:disabled { cursor: not-allowed; opacity: .5; }
 .account-form-error { margin-top: .1rem; }
 .account-loading { display: grid; gap: .5rem; }
 .account-loading .skeleton { height: 3.1rem; }
+.auth-gate { min-height: 13rem; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .45rem; color: hsl(var(--muted-foreground)); border: 1px dashed hsl(var(--border)); text-align: center; }
+.auth-gate svg { color: hsl(var(--primary)); }
+.auth-gate strong { color: hsl(var(--foreground)); font-size: .78rem; }
+.auth-gate span { max-width: 31rem; font-size: .63rem; line-height: 1.5; }
+.auth-gate-button { margin-top: .5rem; }
+.auth-login-button { min-height: 2rem; padding: 0 .7rem; font-size: .6rem; }
+.auth-user-button { min-height: 2rem; max-width: 12rem; padding: 0 .65rem; display: inline-flex; gap: .4rem; align-items: center; overflow: hidden; color: hsl(var(--foreground)); background: hsl(var(--secondary)); border: 1px solid hsl(var(--border)); border-radius: .3rem; font-family: var(--app-font-mono); font-size: .56rem; cursor: pointer; }
+.auth-user-button:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary) / .4); }
+.auth-user-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-account-wrap { position: relative; }
 .select-account-wrap select { width: 100%; min-height: 2.55rem; padding: 0 2rem .02rem .75rem; color: hsl(var(--foreground)); background: hsl(220 19% 10% / .65); border: 1px solid hsl(var(--input)); border-radius: .35rem; outline: 0; font-size: .72rem; appearance: none; }
 .select-account-wrap select:focus { border-color: hsl(var(--primary) / .7); }
@@ -765,6 +774,8 @@ button:disabled, textarea:disabled { cursor: not-allowed; opacity: .5; }
   .viewer-note { margin: -0.5rem 0 .85rem; align-items: flex-start; }
   .viewer-shell, .viewer-empty { min-height: 18rem; }
   .viewer-frame { height: 18rem; min-height: 18rem; }
+  .auth-user-button { max-width: 8.5rem; }
+  .auth-user-button span { display: none; }
   .content-footer { align-items: flex-start; flex-direction: column; padding-top: 1rem; }
 }
 
