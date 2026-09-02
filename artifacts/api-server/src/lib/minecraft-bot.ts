@@ -149,7 +149,7 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
   );
 
   try {
-    bot = mineflayer.createBot({
+    const currentBot = mineflayer.createBot({
       host: nextSettings.host,
       port: nextSettings.port,
       username: nextSettings.username,
@@ -157,60 +157,67 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
       ...(nextSettings.version ? { version: nextSettings.version } : {}),
       hideErrors: true,
     });
-    bot.loadPlugin(pathfinder);
+    bot = currentBot;
+    currentBot.loadPlugin(pathfinder);
 
-    bot.once("login", () => {
+    currentBot.once("login", () => {
+      if (bot !== currentBot) return;
       state = "connecting";
-      addLog("info", `Authenticated as ${bot?.username ?? nextSettings.username}`);
+      addLog("info", `Authenticated as ${currentBot.username ?? nextSettings.username}`);
     });
 
-    bot.once("spawn", () => {
+    currentBot.once("spawn", () => {
+      if (bot !== currentBot) return;
       state = "online";
       addLog(
         "success",
-        `Bot spawned in ${bot?.version ?? nextSettings.version ?? "server world"}`,
+        `Bot spawned in ${currentBot.version ?? nextSettings.version ?? "server world"}`,
       );
-      if (bot?.pathfinder) {
-        bot.pathfinder.setMovements(new Movements(bot));
+      if (currentBot.pathfinder) {
+        currentBot.pathfinder.setMovements(new Movements(currentBot));
         addLog("info", "Pathfinder ready for coordinate navigation");
       }
-      if (bot) {
-        const viewerVersion = startPrismarineViewer(bot);
-        if (viewerVersion) {
-          addLog(
-            "success",
-            `Live world viewer ready at /api/viewer/ (assets: ${viewerVersion})`,
-          );
-        } else {
-          addLog("warning", "Live world viewer could not start for this server version");
-        }
-        scheduleOfflineAuth(bot, nextSettings.offlinePassword);
+      const viewerVersion = startPrismarineViewer(currentBot);
+      if (viewerVersion) {
+        addLog(
+          "success",
+          `Live world viewer ready at /api/viewer/ (assets: ${viewerVersion})`,
+        );
+      } else {
+        addLog("warning", "Live world viewer could not start for this server version");
       }
+      scheduleOfflineAuth(currentBot, nextSettings.offlinePassword);
     });
 
-    bot.on("chat", (username, message) => {
+    currentBot.on("chat", (username, message) => {
+      if (bot !== currentBot) return;
       addLog("chat", `${username}: ${message}`);
     });
 
-    bot.on("health", () => {
+    currentBot.on("health", () => {
+      if (bot !== currentBot) return;
       touch();
     });
 
-    bot.on("move", () => {
+    currentBot.on("move", () => {
+      if (bot !== currentBot) return;
       touch();
     });
 
-    bot.on("kicked", (reason) => {
+    currentBot.on("kicked", (reason) => {
+      if (bot !== currentBot) return;
       state = "error";
       addLog("warning", `Kicked: ${String(reason)}`);
     });
 
-    bot.on("error", (error) => {
+    currentBot.on("error", (error) => {
+      if (bot !== currentBot) return;
       state = "error";
       addLog("error", error.message || "Mineflayer reported an unknown error");
     });
 
-    bot.on("end", (reason) => {
+    currentBot.on("end", (reason) => {
+      if (bot !== currentBot) return;
       if (state !== "error") state = "offline";
       addLog("warning", reason ? `Connection ended: ${reason}` : "Connection ended");
       stopPrismarineViewer();
