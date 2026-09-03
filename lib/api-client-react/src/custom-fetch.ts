@@ -66,7 +66,9 @@ function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
   // Only prepend to relative paths (starting with /)
   if (!url.startsWith("/")) return input;
 
-  const absolute = `${_baseUrl}${url}`;
+  // Resolve rooted API paths against the backend origin instead of appending
+  // them after any path segment in the configured base URL.
+  const absolute = new URL(url, _baseUrl).toString();
   if (typeof input === "string") return absolute;
   if (isUrl(input)) return new URL(absolute);
   return new Request(absolute, input as Request);
