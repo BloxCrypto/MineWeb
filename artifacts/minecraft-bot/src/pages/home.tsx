@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import {
   BotAccountInputAuth,
   BotConnectInputAuth,
@@ -19,6 +20,7 @@ import {
   useSendBotChat,
   type BotAccount,
 } from '@workspace/api-client-react';
+import { supabase } from '@/lib/supabase';
 import {
   Activity,
   AlertTriangle,
@@ -39,6 +41,7 @@ import {
   HeartPulse,
   Layers3,
   LockKeyhole,
+  LogOut,
   Menu,
   MessageSquare,
   Plus,
@@ -362,6 +365,10 @@ function Home() {
     }
   };
 
+  const handleSignOut = () => {
+    if (supabase) void supabase.auth.signOut();
+  };
+
   const isBusy = connectBot.isPending || disconnectBot.isPending;
   const displayLogs = Array.isArray(logs) ? logs.slice(0, 7) : [];
 
@@ -375,6 +382,9 @@ function Home() {
         </div>
 
         <nav className="side-nav" aria-label="Console sections">
+          <Link href="/" className="nav-item" data-testid="nav-home"><ArrowUpRight size={17} /><span>Home</span></Link>
+          <Link href="/signin" className="nav-item" data-testid="nav-signin"><LockKeyhole size={17} /><span>Sign in</span></Link>
+          <Link href="/dashboard" className="nav-item" data-testid="nav-dashboard"><Compass size={17} /><span>Dashboard</span><span className="nav-key">03</span></Link>
           <button type="button" className={`nav-item ${activeView === 'overview' ? 'nav-item-active' : ''}`} onClick={() => { setActiveView('overview'); setMobileSidebarOpen(false); }} data-testid="nav-overview"><Activity size={17} /><span>Overview</span><span className="nav-key">01</span></button>
           <button type="button" className={`nav-item ${activeView === 'accounts' ? 'nav-item-active' : ''}`} onClick={() => { setActiveView('accounts'); setMobileSidebarOpen(false); }} data-testid="nav-accounts"><LockKeyhole size={17} /><span>Account manager</span><span className="nav-count">{accounts.length}</span></button>
           <button type="button" className="nav-item" onClick={() => { setActiveView('overview'); setMobileSidebarOpen(false); }} data-testid="nav-activity"><Terminal size={17} /><span>Activity log</span><span className="nav-count">{Array.isArray(logs) ? logs.length : '—'}</span></button>
@@ -393,6 +403,7 @@ function Home() {
             <span>RD / 0.8.4</span>
             <span className="live-indicator"><span /> polling live</span>
           </div>
+          <button type="button" className="sidebar-signout" onClick={handleSignOut} data-testid="button-signout"><LogOut size={14} /> Sign out</button>
         </div>
       </aside>
 
