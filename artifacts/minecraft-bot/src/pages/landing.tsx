@@ -14,7 +14,7 @@ function Landing() {
         </Link>
         <nav className="landing-actions" aria-label="Main navigation">
           <Link href="/signin" className="text-link">Sign in</Link>
-          <Link href="/dashboard" className="landing-nav-button">Open dashboard <ArrowRight size={15} /></Link>
+          <Link href="/signin" className="landing-nav-button">Open dashboard <ArrowRight size={15} /></Link>
         </nav>
       </header>
 
@@ -25,7 +25,7 @@ function Landing() {
           <p className="landing-description">A focused command center for connecting, observing, and operating your Minecraft bots without losing the signal.</p>
           <div className="hero-actions">
             <Link href="/signin" className="primary-button hero-button">Sign in to MineWeb <ArrowRight size={16} /></Link>
-            <Link href="/dashboard" className="secondary-button hero-button">View dashboard</Link>
+            <Link href="/signin" className="secondary-button hero-button">View dashboard</Link>
           </div>
         </div>
 
