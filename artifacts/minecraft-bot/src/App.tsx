@@ -7,6 +7,7 @@ import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
 import Landing from '@/pages/landing';
 import SignIn from '@/pages/signin';
+import SignUp from '@/pages/signup';
 import {
   Route,
   Switch,
@@ -24,6 +25,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Landing} />
         <Route path="/signin" component={SignIn} />
+        <Route path="/signup" component={SignUp} />
         <Route path="/dashboard" component={Home} />
         <Route component={NotFound} />
       </Switch>

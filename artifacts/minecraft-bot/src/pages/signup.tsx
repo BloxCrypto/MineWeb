@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, LogOut, Mail } from '
 import { Link } from 'wouter';
 import { supabase } from '@/lib/supabase';
 
-function SignIn() {
+function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
@@ -29,14 +29,18 @@ function SignIn() {
       return;
     }
     setIsPending(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data, error: signUpError } = await supabase.auth.signUp({ email: email.trim(), password });
     setIsPending(false);
-    if (signInError) {
-      setError(signInError.message);
+    if (signUpError) {
+      setError(signUpError.message);
       return;
     }
-    setMessage('Signed in successfully. Your dashboard is ready when you are.');
     setPassword('');
+    if (data.session) {
+      setMessage('Account created successfully. Your dashboard is ready when you are.');
+    } else {
+      setMessage('Account created. Check your email to confirm your address, then sign in.');
+    }
   };
 
   const handleSignOut = async () => {
@@ -58,10 +62,10 @@ function SignIn() {
       </header>
       <section className="auth-layout">
         <div className="auth-aside reveal">
-          <p className="overline"><span className="overline-line" /> SECURE ACCESS</p>
-          <h1>Good to have<br /><em>you back.</em></h1>
-          <p>Sign in to pick up where your bot sessions left off. Nothing moves you to the dashboard automatically.</p>
-          <div className="auth-note"><CheckCircle2 size={17} /><span>Session state is managed securely by Supabase.</span></div>
+          <p className="overline"><span className="overline-line" /> START YOUR WORKSPACE</p>
+          <h1>Build your<br /><em>next session.</em></h1>
+          <p>Create a MineWeb account to keep your bot identities and live operations in one focused workspace.</p>
+          <div className="auth-note"><CheckCircle2 size={17} /><span>Your account is secured by Supabase authentication.</span></div>
         </div>
         <div className="signin-panel reveal delay-1">
           {sessionEmail ? (
@@ -75,14 +79,14 @@ function SignIn() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="signin-form">
-              <div className="auth-switch" aria-label="Authentication pages"><span>New to MineWeb?</span><Link href="/signup">Create an account</Link></div>
-              <div className="signin-heading"><div className="auth-icon"><LockKeyhole size={20} /></div><p className="eyebrow">MINEWEB ACCOUNT</p><h2>Sign in</h2><p className="signin-copy">Use your email and password to access your workspace.</p></div>
+              <div className="auth-switch" aria-label="Authentication pages"><span>Already have an account?</span><Link href="/signin">Sign in</Link></div>
+              <div className="signin-heading"><div className="auth-icon"><LockKeyhole size={20} /></div><p className="eyebrow">MINEWEB ACCOUNT</p><h2>Create account</h2><p className="signin-copy">Set up your email and password to get started.</p></div>
               <label className="signin-field"><span>Email address</span><div className="signin-input"><Mail size={16} /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" required /></div></label>
-              <label className="signin-field"><span>Password</span><div className="signin-input"><LockKeyhole size={16} /><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required /></div></label>
+              <label className="signin-field"><span>Password</span><div className="signin-input"><LockKeyhole size={16} /><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Create a password" autoComplete="new-password" minLength={6} required /></div></label>
               {error && <p className="signin-error" role="alert">{error}</p>}
               {message && <p className="signin-message" role="status">{message}</p>}
-              <button type="submit" className="primary-button signin-submit" disabled={isPending}>{isPending ? 'Signing in...' : 'Sign in'} <ArrowRight size={15} /></button>
-              <p className="signin-footnote">Your session stays on this device until you sign out.</p>
+              <button type="submit" className="primary-button signin-submit" disabled={isPending}>{isPending ? 'Creating account...' : 'Create account'} <ArrowRight size={15} /></button>
+              <p className="signin-footnote">Use at least 6 characters for your password.</p>
             </form>
           )}
         </div>
@@ -91,4 +95,4 @@ function SignIn() {
   );
 }
 
-export default SignIn;
+export default SignUp;
