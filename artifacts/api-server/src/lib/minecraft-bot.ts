@@ -3,6 +3,7 @@ import type { Bot } from "mineflayer";
 import pathfinderPackage from "mineflayer-pathfinder";
 import { logger } from "./logger";
 import { startPrismarineViewer, stopPrismarineViewer } from "./minecraft-viewer";
+import { supportedVersions } from "minecraft-protocol/src/version.js";
 
 const { Movements, goals, pathfinder } = pathfinderPackage;
 
@@ -152,6 +153,16 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
   clearOfflineAuthTimers();
   state = "connecting";
   touch();
+
+  if (nextSettings.version && !supportedVersions.includes(nextSettings.version)) {
+    state = "error";
+    addLog(
+      "error",
+      `Minecraft version ${nextSettings.version} is not supported by this bot client. Supported versions end at ${supportedVersions[supportedVersions.length - 1]}.`,
+    );
+    return getBotStatus();
+  }
+
   addLog(
     "info",
     `Connecting ${nextSettings.username} to ${nextSettings.host}:${nextSettings.port}`,
