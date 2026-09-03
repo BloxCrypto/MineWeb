@@ -39,7 +39,3 @@ startServer().catch((err) => {
   logger.error(err, "Failed to start server");
   process.exit(1);
 });
-startServer().catch((err) => {
-  logger.error(err, "Failed to start server");
-  process.exit(1);
-});
