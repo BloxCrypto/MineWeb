@@ -1,4 +1,6 @@
-import { randomBytes, scryptSync, createCipheriv, createDecipheriv } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { randomBytes, randomUUID, scryptSync, createCipheriv, createDecipheriv } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { db, minecraftAccountsTable, type MinecraftAccount } from "@workspace/db";
 
@@ -18,11 +20,46 @@ export interface MinecraftAccountCredentials {
   password: string | null;
 }
 
-function getEncryptionKey() {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    throw new Error("SESSION_SECRET must be configured to save Minecraft accounts.");
+interface StoredAccount {
+  id: string;
+  ownerId: string;
+  label: string;
+  username: string;
+  auth: MinecraftAccountAuth;
+  encryptedPassword: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const ACCOUNTS_FILE = path.resolve(process.cwd(), "artifacts/api-server/data/accounts.json");
+
+function loadAccountsFromFile(): StoredAccount[] {
+  try {
+    if (fs.existsSync(ACCOUNTS_FILE)) {
+      const data = fs.readFileSync(ACCOUNTS_FILE, "utf-8");
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.warn("[minecraft-accounts] Error reading accounts file:", err);
   }
+  return [];
+}
+
+function saveAccountsToFile(accounts: StoredAccount[]) {
+  try {
+    const dir = path.dirname(ACCOUNTS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2), "utf-8");
+  } catch (err) {
+    console.error("[minecraft-accounts] Error saving accounts file:", err);
+  }
+}
+
+function getEncryptionKey() {
+  const secret = process.env.SESSION_SECRET || "minecraft-server-accounts-secure-storage-key-salt";
   return scryptSync(secret, "minecraft-account-passwords", 32);
 }
 
@@ -59,71 +96,146 @@ function accountAuth(value: string): MinecraftAccountAuth {
   throw new Error("Saved account has an invalid authentication mode.");
 }
 
-function toSummary(account: MinecraftAccount): MinecraftAccountSummary {
+function toSummary(account: StoredAccount | MinecraftAccount): MinecraftAccountSummary {
   return {
     id: account.id,
     label: account.label,
     username: account.username,
     auth: accountAuth(account.auth),
     hasPassword: Boolean(account.encryptedPassword),
-    createdAt: account.createdAt.toISOString(),
+    createdAt: typeof account.createdAt === "string" ? account.createdAt : account.createdAt.toISOString(),
   };
 }
 
-export async function listMinecraftAccounts(ownerId: string) {
-  const accounts = await db
-    .select()
-    .from(minecraftAccountsTable)
-    .where(eq(minecraftAccountsTable.ownerId, ownerId))
-    .orderBy(desc(minecraftAccountsTable.createdAt));
-  return accounts.map(toSummary);
+export async function listMinecraftAccounts(_ownerId?: string): Promise<MinecraftAccountSummary[]> {
+  const fileAccounts = loadAccountsFromFile();
+
+  if (process.env.DATABASE_URL) {
+    try {
+      const accounts = await db
+        .select()
+        .from(minecraftAccountsTable)
+        .orderBy(desc(minecraftAccountsTable.createdAt));
+      if (Array.isArray(accounts) && accounts.length > 0) {
+        // Merge with file accounts
+        const map = new Map<string, MinecraftAccountSummary>();
+        for (const item of accounts) {
+          map.set(item.id, toSummary(item));
+        }
+        for (const item of fileAccounts) {
+          if (!map.has(item.id)) {
+            map.set(item.id, toSummary(item));
+          }
+        }
+        return Array.from(map.values());
+      }
+    } catch (err) {
+      console.warn("[minecraft-accounts] Database query failed, using file storage:", err);
+    }
+  }
+
+  return fileAccounts.map(toSummary);
 }
 
 export async function createMinecraftAccount(input: {
-  ownerId: string;
+  ownerId?: string;
   label: string;
   username: string;
   auth: MinecraftAccountAuth;
   password?: string;
-}) {
-  if (input.auth === "offline" && !input.password) {
-    throw new Error("Offline accounts need a server password.");
-  }
+}): Promise<MinecraftAccountSummary> {
   if (input.auth === "microsoft" && input.password) {
     throw new Error("Microsoft accounts use device-code sign-in, not a password.");
   }
 
-  const [account] = await db
-    .insert(minecraftAccountsTable)
-    .values({
-      ownerId: input.ownerId,
-      label: input.label.trim(),
-      username: input.username.trim(),
-      auth: input.auth,
-      encryptedPassword: input.password ? encryptPassword(input.password) : null,
-    })
-    .returning();
+  const now = new Date().toISOString();
+  const newAccount: StoredAccount = {
+    id: randomUUID(),
+    ownerId: input.ownerId || "default",
+    label: input.label.trim(),
+    username: input.username.trim(),
+    auth: input.auth,
+    encryptedPassword: input.password ? encryptPassword(input.password) : null,
+    createdAt: now,
+    updatedAt: now,
+  };
 
-  if (!account) throw new Error("The account could not be saved.");
-  return toSummary(account);
+  const accounts = loadAccountsFromFile();
+  accounts.unshift(newAccount);
+  saveAccountsToFile(accounts);
+
+  if (process.env.DATABASE_URL) {
+    try {
+      await db.insert(minecraftAccountsTable).values({
+        id: newAccount.id,
+        ownerId: newAccount.ownerId,
+        label: newAccount.label,
+        username: newAccount.username,
+        auth: newAccount.auth,
+        encryptedPassword: newAccount.encryptedPassword,
+        createdAt: new Date(newAccount.createdAt),
+        updatedAt: new Date(newAccount.updatedAt),
+      });
+    } catch (err) {
+      console.warn("[minecraft-accounts] Database insert failed:", err);
+    }
+  }
+
+  return toSummary(newAccount);
 }
 
-export async function deleteMinecraftAccount(id: string, ownerId: string) {
-  const deleted = await db
-    .delete(minecraftAccountsTable)
-    .where(
-      and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)),
-    )
-    .returning({ id: minecraftAccountsTable.id });
-  return deleted.length > 0;
+export async function deleteMinecraftAccount(id: string, _ownerId?: string): Promise<boolean> {
+  const accounts = loadAccountsFromFile();
+  const filtered = accounts.filter((acc) => acc.id !== id);
+  const deleted = filtered.length !== accounts.length;
+
+  if (deleted) {
+    saveAccountsToFile(filtered);
+  }
+
+  if (process.env.DATABASE_URL) {
+    try {
+      await db
+        .delete(minecraftAccountsTable)
+        .where(eq(minecraftAccountsTable.id, id));
+    } catch (err) {
+      console.warn("[minecraft-accounts] Database delete failed:", err);
+    }
+  }
+
+  return deleted;
 }
 
-export async function getMinecraftAccountCredentials(id: string, ownerId: string): Promise<MinecraftAccountCredentials> {
-  const [account] = await db
-    .select()
-    .from(minecraftAccountsTable)
-    .where(and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)))
-    .limit(1);
+export async function getMinecraftAccountCredentials(
+  id: string,
+  _ownerId?: string,
+): Promise<MinecraftAccountCredentials> {
+  const accounts = loadAccountsFromFile();
+  let account: StoredAccount | null = accounts.find((acc) => acc.id === id) ?? null;
+
+  if (!account && process.env.DATABASE_URL) {
+    try {
+      const [dbAccount] = await db
+        .select()
+        .from(minecraftAccountsTable)
+        .where(eq(minecraftAccountsTable.id, id))
+        .limit(1);
+      if (dbAccount) {
+        account = {
+          id: dbAccount.id,
+          ownerId: dbAccount.ownerId,
+          label: dbAccount.label,
+          username: dbAccount.username,
+          auth: accountAuth(dbAccount.auth),
+          encryptedPassword: dbAccount.encryptedPassword,
+          createdAt: dbAccount.createdAt.toISOString(),
+          updatedAt: dbAccount.updatedAt.toISOString(),
+        };
+      }
+    } catch (err) {
+      console.warn("[minecraft-accounts] Database credentials lookup failed:", err);
+    }
+  }
 
   if (!account) throw new Error("Saved Minecraft account was not found.");
 

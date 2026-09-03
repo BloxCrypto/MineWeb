@@ -11,10 +11,18 @@
     "dev": "tsx server.ts",
     "build": "npm run build --workspace=@workspace/minecraft-bot",
     "start": "tsx server.ts",
-    "typecheck": "tsc --build"
+    "lint": "npm run typecheck",
+    "typecheck": "tsc --build",
+    "postinstall": "mkdir -p node_modules/@workspace && ln -sfn ../../lib/db node_modules/@workspace/db && ln -sfn ../../lib/api-zod node_modules/@workspace/api-zod && ln -sfn ../../lib/api-client-react node_modules/@workspace/api-client-react && ln -sfn ../../lib/replit-auth-web node_modules/@workspace/replit-auth-web && ln -sfn ../../artifacts/api-server node_modules/@workspace/api-server && ln -sfn ../../artifacts/minecraft-bot node_modules/@workspace/minecraft-bot"
   },
   "private": true,
   "dependencies": {
+    "@workspace/api-client-react": "*",
+    "@workspace/api-server": "*",
+    "@workspace/api-zod": "*",
+    "@workspace/db": "*",
+    "@workspace/minecraft-bot": "*",
+    "@workspace/replit-auth-web": "*",
     "canvas": "*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

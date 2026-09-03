@@ -38,8 +38,6 @@ import {
   Gamepad2,
   HeartPulse,
   Layers3,
-  LogIn,
-  LogOut,
   LockKeyhole,
   MessageSquare,
   MoreHorizontal,
@@ -59,7 +57,6 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { useAuth } from '@workspace/replit-auth-web';
 
 type ConnectionState = 'offline' | 'connecting' | 'online' | 'error';
 
@@ -107,12 +104,12 @@ function BrandMark() {
   );
 }
 
-function SectionLabel({ icon: Icon, eyebrow, title }: { icon: typeof Activity; eyebrow: string; title: string }) {
+function SectionLabel({ icon: Icon, eyebrow, title }: { icon: typeof Activity; eyebrow?: string; title: string }) {
   return (
     <div className="section-heading">
       <div className="section-icon"><Icon size={15} strokeWidth={2.2} /></div>
       <div>
-        <p className="eyebrow">{eyebrow}</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h2>{title}</h2>
       </div>
     </div>
@@ -135,11 +132,10 @@ function Skeleton({ className = '' }: { className?: string }) {
 
 function Home() {
   const queryClient = useQueryClient();
-  const { user, isLoading: authLoading, isAuthenticated, login, logout } = useAuth();
   const accountsQuery = useGetBotAccounts({
     query: {
       queryKey: getGetBotAccountsQueryKey(),
-      enabled: isAuthenticated,
+      refetchInterval: 5000,
     },
   });
   const statusQuery = useGetBotStatus({
@@ -190,14 +186,9 @@ function Home() {
   const initializedFromStatus = useRef(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
-      setCachedAccounts([]);
-      setSelectedAccountId('');
-      return;
-    }
     try {
-      const cached = window.localStorage.getItem(`minecraft-console:accounts:${user.id}`);
-      const selected = window.localStorage.getItem(`minecraft-console:selected-account:${user.id}`);
+      const cached = window.localStorage.getItem('minecraft-console:accounts');
+      const selected = window.localStorage.getItem('minecraft-console:selected-account');
       if (cached) {
         const parsed = JSON.parse(cached) as BotAccount[];
         if (Array.isArray(parsed)) setCachedAccounts(parsed);
@@ -206,32 +197,31 @@ function Home() {
     } catch {
       // Local storage is an enhancement; the server remains the source of truth.
     }
-  }, [isAuthenticated, user?.id]);
+  }, []);
 
   useEffect(() => {
-    if (!accountsQuery.data || !user?.id) return;
+    if (!Array.isArray(accountsQuery.data)) return;
     setCachedAccounts(accountsQuery.data);
     try {
-      window.localStorage.setItem(`minecraft-console:accounts:${user.id}`, JSON.stringify(accountsQuery.data));
+      window.localStorage.setItem('minecraft-console:accounts', JSON.stringify(accountsQuery.data));
     } catch {
       // Continue using the server-backed list when browser storage is unavailable.
     }
-  }, [accountsQuery.data, user?.id]);
+  }, [accountsQuery.data]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) return;
     try {
       if (selectedAccountId) {
-        window.localStorage.setItem(`minecraft-console:selected-account:${user.id}`, selectedAccountId);
+        window.localStorage.setItem('minecraft-console:selected-account', selectedAccountId);
       } else {
-        window.localStorage.removeItem(`minecraft-console:selected-account:${user.id}`);
+        window.localStorage.removeItem('minecraft-console:selected-account');
       }
     } catch {
       // Selection still works for the current session when storage is unavailable.
     }
-  }, [isAuthenticated, selectedAccountId, user?.id]);
+  }, [selectedAccountId]);
 
-  const accounts = isAuthenticated ? (accountsQuery.data ?? cachedAccounts) : [];
+  const accounts = Array.isArray(accountsQuery.data) ? accountsQuery.data : cachedAccounts;
 
   useEffect(() => {
     if (!status || initializedFromStatus.current) return;
@@ -287,14 +277,14 @@ function Home() {
     event.preventDefault();
     const label = accountLabel.trim();
     const accountName = accountUsername.trim();
-    if (!label || !accountName || (accountAuth === BotAccountInputAuth.offline && !accountPassword.trim())) return;
+    if (!label || !accountName) return;
     createAccount.mutate(
       {
         data: {
           label,
           username: accountName,
           auth: accountAuth,
-          ...(accountAuth === BotAccountInputAuth.offline ? { password: accountPassword.trim() } : {}),
+          ...(accountAuth === BotAccountInputAuth.offline && accountPassword.trim() ? { password: accountPassword.trim() } : {}),
         },
       },
       {
@@ -370,7 +360,7 @@ function Home() {
   };
 
   const isBusy = connectBot.isPending || disconnectBot.isPending;
-  const displayLogs = logs?.slice(0, 7) ?? [];
+  const displayLogs = Array.isArray(logs) ? logs.slice(0, 7) : [];
 
   return (
     <main className="app-shell">
@@ -396,7 +386,7 @@ function Home() {
 
         <nav className="side-nav" aria-label="Console sections">
           <div className="nav-item nav-item-active" data-testid="nav-overview"><Activity size={17} /><span>Overview</span><span className="nav-key">01</span></div>
-          <div className="nav-item" data-testid="nav-activity"><Terminal size={17} /><span>Activity log</span><span className="nav-count">{logs?.length ?? '—'}</span></div>
+          <div className="nav-item" data-testid="nav-activity"><Terminal size={17} /><span>Activity log</span><span className="nav-count">{Array.isArray(logs) ? logs.length : '—'}</span></div>
           <div className="nav-item" data-testid="nav-target"><Server size={17} /><span>Target config</span></div>
         </nav>
 
@@ -416,26 +406,6 @@ function Home() {
       </aside>
 
       <section className="main-panel">
-        <header className="topbar">
-          <div className="crumbs"><span>CONTROL ROOM</span><ChevronDown size={13} /><strong>BOT OVERVIEW</strong></div>
-          <div className="topbar-actions">
-            <span className="polling-label"><span className="polling-dot" /> auto-refresh 4s</span>
-            <button className="icon-button" type="button" onClick={() => void statusQuery.refetch()} aria-label="Refresh status" data-testid="button-refresh-status"><RefreshCw size={16} className={statusQuery.isFetching ? 'spin' : ''} /></button>
-            {authLoading ? (
-              <button className="avatar-button" type="button" disabled aria-label="Loading sign-in" data-testid="button-auth-loading">…</button>
-            ) : isAuthenticated ? (
-              <button className="auth-user-button" type="button" onClick={logout} aria-label="Log out" title={user?.email ?? 'Signed-in operator'} data-testid="button-logout">
-                <LogOut size={14} />
-                <span>{user?.firstName || user?.email || 'Signed in'}</span>
-              </button>
-            ) : (
-              <button className="primary-button auth-login-button" type="button" onClick={login} data-testid="button-login">
-                <LogIn size={14} /> Sign in
-              </button>
-            )}
-          </div>
-        </header>
-
         <div className="content-wrap">
           <div className="page-intro reveal">
             <div>
@@ -471,25 +441,9 @@ function Home() {
 
           <section className="panel accounts-panel reveal delay-2">
             <div className="panel-head">
-              <SectionLabel icon={LockKeyhole} eyebrow="IDENTITIES / SAVED" title="Account library" />
+              <SectionLabel icon={LockKeyhole} title="Account library" />
               <span className="panel-tag" data-testid="text-account-count">{accounts.length} SAVED</span>
             </div>
-            {authLoading ? (
-              <div className="auth-gate" data-testid="loading-auth">
-                <RefreshCw size={18} className="spin" />
-                <strong>Checking sign-in</strong>
-                <span>Loading your saved identity library.</span>
-              </div>
-            ) : !isAuthenticated ? (
-              <div className="auth-gate" data-testid="auth-gate">
-                <LockKeyhole size={19} />
-                <strong>Sign in to access saved identities</strong>
-                <span>Your Minecraft accounts are stored securely on the server and return after local storage is cleared.</span>
-                <button className="primary-button auth-gate-button" type="button" onClick={login} data-testid="button-login-account-library">
-                  <LogIn size={15} /> Sign in / create account
-                </button>
-              </div>
-            ) : (
             <div className="accounts-layout">
               <div className="accounts-list" data-testid="list-accounts">
                 {accountsQuery.isLoading && accounts.length === 0 ? (
@@ -537,35 +491,11 @@ function Home() {
                   <div className="accounts-empty" data-testid="empty-accounts">
                     <LockKeyhole size={18} />
                     <strong>No saved identities yet</strong>
-                    <span>Save an offline or Microsoft identity for one-tap connection.</span>
+                    <span>Add an account for one-tap connection.</span>
                   </div>
                 )}
               </div>
               <form className="account-create" onSubmit={handleCreateAccount}>
-                <div className="account-create-head">
-                  <span className="account-create-title">Save an identity</span>
-                  <Plus size={16} color="hsl(var(--primary))" />
-                </div>
-                <div className="account-auth-tabs" role="tablist" aria-label="Saved account authentication">
-                  <button
-                    type="button"
-                    className={`account-auth-tab ${accountAuth === BotAccountInputAuth.offline ? 'account-auth-tab-selected' : ''}`}
-                    onClick={() => setAccountAuth(BotAccountInputAuth.offline)}
-                    aria-selected={accountAuth === BotAccountInputAuth.offline}
-                    data-testid="button-account-auth-offline"
-                  >
-                    <AtSign size={14} /> Offline
-                  </button>
-                  <button
-                    type="button"
-                    className={`account-auth-tab ${accountAuth === BotAccountInputAuth.microsoft ? 'account-auth-tab-selected' : ''}`}
-                    onClick={() => { setAccountAuth(BotAccountInputAuth.microsoft); setAccountPassword(''); }}
-                    aria-selected={accountAuth === BotAccountInputAuth.microsoft}
-                    data-testid="button-account-auth-microsoft"
-                  >
-                    <Smartphone size={14} /> Microsoft
-                  </button>
-                </div>
                 <div className="account-form">
                   <label className="field">
                     <span>ACCOUNT LABEL</span>
@@ -575,32 +505,22 @@ function Home() {
                     <span>MINECRAFT USERNAME</span>
                     <div className="field-wrap"><AtSign size={14} /><input value={accountUsername} onChange={(event) => setAccountUsername(event.target.value)} maxLength={120} placeholder="OperatorBot" autoComplete="username" required data-testid="input-account-username" /></div>
                   </label>
-                  {accountAuth === BotAccountInputAuth.offline ? (
-                    <>
-                      <label className="field">
-                        <span>OFFLINE PASSWORD</span>
-                        <div className="field-wrap"><ShieldCheck size={14} /><input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} minLength={1} maxLength={128} placeholder="Required for saved offline auth" autoComplete="new-password" required data-testid="input-account-password" /></div>
-                      </label>
-                      <div className="account-security-copy" data-testid="text-offline-security">
-                        <ShieldCheck size={14} />
-                        <span>Stored only as a protected credential for this bot service. Use a dedicated offline password, not a personal password.</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="account-security-copy" data-testid="text-microsoft-oauth">
-                      <Smartphone size={14} />
-                      <span>Microsoft sign-in uses the confirmed device-code/OAuth flow. Continue in the system browser; no Microsoft password is requested or stored.</span>
-                    </div>
-                  )}
+                  <label className="field">
+                    <span>OFFLINE PASSWORD <i>OPTIONAL</i></span>
+                    <div className="field-wrap"><ShieldCheck size={14} /><input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} maxLength={128} placeholder="Optional server password (AuthMe)" autoComplete="new-password" data-testid="input-account-password" /></div>
+                  </label>
+                  <div className="account-security-copy" data-testid="text-offline-security">
+                    <ShieldCheck size={14} />
+                    <span>Stored only as a protected credential for this bot service. Use a dedicated offline password, not a personal password.</span>
+                  </div>
                   {createAccount.isError && <div className="inline-error account-form-error" role="alert" data-testid="error-create-account"><AlertTriangle size={14} /> {errorText(createAccount.error)}</div>}
                   <button className="primary-button account-create-submit" type="submit" disabled={createAccount.isPending} data-testid="button-create-account">
                     {createAccount.isPending ? <RefreshCw size={15} className="spin" /> : <Plus size={15} />}
-                    {createAccount.isPending ? 'Saving identity…' : 'Save identity'}
+                    {createAccount.isPending ? 'Saving account…' : 'Save account'}
                   </button>
                 </div>
               </form>
             </div>
-            )}
           </section>
 
           <div className="dashboard-grid">
@@ -644,7 +564,6 @@ function Home() {
                     <span className="field-label">AUTH MODE</span>
                     <div className="auth-options">
                       <button type="button" className={`auth-option ${auth === BotConnectInputAuth.offline ? 'auth-selected' : ''}`} onClick={() => setAuth(BotConnectInputAuth.offline)} data-testid="button-auth-offline"><span className="auth-radio" /> Offline</button>
-                      <button type="button" className={`auth-option ${auth === BotConnectInputAuth.microsoft ? 'auth-selected' : ''}`} onClick={() => setAuth(BotConnectInputAuth.microsoft)} data-testid="button-auth-microsoft"><span className="auth-radio" /> Microsoft</button>
                     </div>
                   </div>
                   <button type="button" className="help-button" aria-label="About authentication modes" data-testid="button-auth-help"><CircleHelp size={16} /></button>
@@ -790,16 +709,11 @@ function Home() {
                 ))}
               </div>
               <div className="players-strip">
-                <div className="players-strip-heading"><span className="readout-label"><Users size={14} /> VISIBLE PLAYERS</span><span>{playersQuery.isFetching ? 'syncing' : `${playersQuery.data?.length ?? 0} online`}</span></div>
-                {state !== 'online' ? <span className="players-empty">Connect to synchronize the lobby.</span> : playersQuery.isLoading ? <span className="players-empty">Reading player map…</span> : playersQuery.data?.length ? <div className="player-chips">{playersQuery.data.slice(0, 8).map((player) => <span key={player.username}>{player.username}</span>)}</div> : <span className="players-empty">No players synchronized yet.</span>}
+                <div className="players-strip-heading"><span className="readout-label"><Users size={14} /> VISIBLE PLAYERS</span><span>{playersQuery.isFetching ? 'syncing' : `${Array.isArray(playersQuery.data) ? playersQuery.data.length : 0} online`}</span></div>
+                {state !== 'online' ? <span className="players-empty">Connect to synchronize the lobby.</span> : playersQuery.isLoading ? <span className="players-empty">Reading player map…</span> : Array.isArray(playersQuery.data) && playersQuery.data.length ? <div className="player-chips">{playersQuery.data.slice(0, 8).map((player) => <span key={player.username}>{player.username}</span>)}</div> : <span className="players-empty">No players synchronized yet.</span>}
               </div>
             </section>
           </div>
-
-          <footer className="content-footer">
-            <span><ShieldCheck size={14} /> credentials stay in this session</span>
-            <span className="footer-links"><button type="button" data-testid="button-copy-target" onClick={copyTarget}>{copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied target' : 'Copy target'}</button><button type="button" data-testid="button-documentation"><ExternalLink size={13} /> API reference</button></span>
-          </footer>
         </div>
       </section>
     </main>

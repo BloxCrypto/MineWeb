@@ -21,6 +21,18 @@ export default defineConfig({
         '..',
         'attached_assets',
       ),
+      '@workspace/api-client-react': path.resolve(
+        import.meta.dirname,
+        '..',
+        '..',
+        'lib/api-client-react/src',
+      ),
+      '@workspace/replit-auth-web': path.resolve(
+        import.meta.dirname,
+        '..',
+        '..',
+        'lib/replit-auth-web/src',
+      ),
     },
     dedupe: ['react', 'react-dom'],
   },
@@ -34,6 +46,7 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    hmr: false,
     fs: {
       strict: true,
     },

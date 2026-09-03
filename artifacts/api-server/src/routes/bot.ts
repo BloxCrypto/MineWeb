@@ -28,12 +28,8 @@ import {
 const router: IRouter = Router();
 
 router.get("/bot/accounts", async (_req, res) => {
-  if (!_req.isAuthenticated()) {
-    res.status(401).json({ error: "Sign in to view saved Minecraft accounts." });
-    return;
-  }
   try {
-    res.json(await listMinecraftAccounts(_req.user.id));
+    res.json(await listMinecraftAccounts());
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : "Saved accounts are unavailable.",
@@ -42,27 +38,20 @@ router.get("/bot/accounts", async (_req, res) => {
 });
 
 router.post("/bot/accounts", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Sign in to save Minecraft accounts." });
-    return;
-  }
   const parsed = CreateBotAccountBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Enter a label, username, auth mode, and valid password." });
+    res.status(400).json({ error: "Enter a label, username, and valid authentication settings." });
     return;
   }
 
-  if (parsed.data.auth === "offline" && !parsed.data.password) {
-    res.status(400).json({ error: "Offline accounts need a server password." });
-    return;
-  }
   if (parsed.data.auth === "microsoft" && parsed.data.password) {
     res.status(400).json({ error: "Microsoft accounts use device-code sign-in, not a password." });
     return;
   }
 
   try {
-    res.status(201).json(await createMinecraftAccount({ ...parsed.data, ownerId: req.user.id }));
+    const ownerId = (req.user as any)?.id || "default";
+    res.status(201).json(await createMinecraftAccount({ ...parsed.data, ownerId }));
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : "The account could not be saved.",
@@ -71,12 +60,8 @@ router.post("/bot/accounts", async (req, res) => {
 });
 
 router.delete("/bot/accounts/:accountId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Sign in to delete saved Minecraft accounts." });
-    return;
-  }
   try {
-    const deleted = await deleteMinecraftAccount(req.params.accountId, req.user.id);
+    const deleted = await deleteMinecraftAccount(req.params.accountId);
     if (!deleted) {
       res.status(404).json({ error: "Saved Minecraft account was not found." });
       return;
@@ -111,11 +96,7 @@ router.post("/bot/connect", async (req, res) => {
   try {
     const { accountId, ...connectionInput } = parsed.data;
     const account = accountId
-      ? req.isAuthenticated()
-        ? await getMinecraftAccountCredentials(accountId, req.user.id)
-        : (() => {
-            throw new Error("Sign in to use a saved Minecraft account.");
-          })()
+      ? await getMinecraftAccountCredentials(accountId)
       : null;
     const connectionSettings = {
       ...connectionInput,
