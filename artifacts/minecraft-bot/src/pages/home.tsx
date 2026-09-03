@@ -174,7 +174,6 @@ function Home() {
   const [version, setVersion] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [accountAuth, setAccountAuth] = useState<BotAccountInputAuth>(BotAccountInputAuth.offline);
-  const [accountLabel, setAccountLabel] = useState('');
   const [accountUsername, setAccountUsername] = useState('');
   const [accountPassword, setAccountPassword] = useState('');
   const [cachedAccounts, setCachedAccounts] = useState<BotAccount[]>([]);
@@ -275,13 +274,12 @@ function Home() {
 
   const handleCreateAccount = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const label = accountLabel.trim();
     const accountName = accountUsername.trim();
-    if (!label || !accountName) return;
+    if (!accountName) return;
     createAccount.mutate(
       {
         data: {
-          label,
+          label: accountName,
           username: accountName,
           auth: accountAuth,
           ...(accountAuth === BotAccountInputAuth.offline && accountPassword.trim() ? { password: accountPassword.trim() } : {}),
@@ -291,7 +289,6 @@ function Home() {
         onSuccess: (account) => {
           void queryClient.invalidateQueries({ queryKey: getGetBotAccountsQueryKey() });
           setSelectedAccountId(account.id);
-          setAccountLabel('');
           setAccountUsername('');
           setAccountPassword('');
         },
@@ -475,7 +472,6 @@ function Home() {
                       >
                         <span className="account-glyph">{account.auth === 'microsoft' ? <Smartphone size={15} /> : <AtSign size={15} />}</span>
                         <span className="account-copy">
-                          <span className="account-label" data-testid={`text-account-label-${account.id}`}>{account.label}</span>
                           <span className="account-username" data-testid={`text-account-username-${account.id}`}>{account.username}</span>
                         </span>
                         <span className="account-badge" data-testid={`text-account-auth-${account.id}`}>{account.auth}</span>
@@ -503,10 +499,6 @@ function Home() {
               </div>
               <form className="account-create" onSubmit={handleCreateAccount}>
                 <div className="account-form">
-                  <label className="field">
-                    <span>ACCOUNT LABEL</span>
-                    <div className="field-wrap"><LockKeyhole size={14} /><input value={accountLabel} onChange={(event) => setAccountLabel(event.target.value)} maxLength={80} placeholder="Build operator" required data-testid="input-account-label" /></div>
-                  </label>
                   <label className="field">
                     <span>MINECRAFT USERNAME</span>
                     <div className="field-wrap"><AtSign size={14} /><input value={accountUsername} onChange={(event) => setAccountUsername(event.target.value)} maxLength={120} placeholder="OperatorBot" autoComplete="username" required data-testid="input-account-username" /></div>
@@ -541,7 +533,7 @@ function Home() {
                   <div className="select-account-wrap">
                     <select value={selectedAccountId} onChange={(event) => handleAccountSelect(event.target.value)} required data-testid="select-account">
                       <option value="">Select an account</option>
-                      {accounts.map((account) => <option value={account.id} key={account.id}>{account.label} · {account.username}</option>)}
+                      {accounts.map((account) => <option value={account.id} key={account.id}>{account.username}</option>)}
                     </select>
                     <ChevronDown size={14} />
                   </div>
