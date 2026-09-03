@@ -62,6 +62,7 @@ let lastEvent: string | null = null;
 let updatedAt = new Date().toISOString();
 let sequence = 0;
 const logs: BotLog[] = [];
+const pendingChatEchoes: string[] = [];
 let offlineAuthTimers: ReturnType<typeof setTimeout>[] = [];
 
 function touch() {
@@ -80,6 +81,14 @@ function addLog(level: BotLogLevel, message: string) {
   lastEvent = message;
   touch();
   logger.info({ level, message }, "Mineflayer bot event");
+}
+
+function trackChatEcho(message: string) {
+  pendingChatEchoes.push(message);
+  setTimeout(() => {
+    const index = pendingChatEchoes.indexOf(message);
+    if (index !== -1) pendingChatEchoes.splice(index, 1);
+  }, 5000);
 }
 
 function clearOfflineAuthTimers() {
@@ -191,6 +200,10 @@ export function connectBot(nextSettings: BotConnectSettings): BotStatus {
 
     currentBot.on("chat", (username, message) => {
       if (bot !== currentBot) return;
+      if (username === currentBot.username && pendingChatEchoes.includes(message)) {
+        pendingChatEchoes.splice(pendingChatEchoes.indexOf(message), 1);
+        return;
+      }
       addLog("chat", `${username}: ${message}`);
     });
 
@@ -256,6 +269,7 @@ export function sendBotChat(message: string): BotStatus {
   if (!bot || state !== "online") {
     throw new Error("Bot is not connected");
   }
+  trackChatEcho(message);
   bot.chat(message);
   addLog("chat", `${bot.username}: ${message}`);
   return getBotStatus();
@@ -304,6 +318,7 @@ export function runBotCommand(command: string): BotCommandResult {
   if (name === "say") {
     const message = args.join(" ").trim();
     if (!message) throw new Error("Usage: !say <message>");
+    trackChatEcho(message);
     currentBot.chat(message);
     addLog("chat", `${currentBot.username}: ${message}`);
     return { output: `Sent to chat: ${message}`, status: getBotStatus() };
