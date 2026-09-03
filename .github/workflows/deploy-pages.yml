@@ -33,6 +33,7 @@ jobs:
         run: npm run build --workspace=@workspace/minecraft-bot
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
