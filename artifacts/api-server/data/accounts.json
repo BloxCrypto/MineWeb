@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "ce3856ff-e693-4efc-b5e6-68c55c5627fd",
+    "ownerId": "default",
+    "label": "fluxes",
+    "username": "fluxes",
+    "auth": "offline",
+    "encryptedPassword": null,
+    "createdAt": "2026-09-03T05:15:58.907Z",
+    "updatedAt": "2026-09-03T05:15:58.907Z"
+  }
+]

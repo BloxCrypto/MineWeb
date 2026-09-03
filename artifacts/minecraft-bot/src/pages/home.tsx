@@ -171,9 +171,7 @@ function Home() {
 
   const [host, setHost] = useState('localhost');
   const [port, setPort] = useState('25565');
-  const [username, setUsername] = useState('OperatorBot');
   const [version, setVersion] = useState('');
-  const [auth, setAuth] = useState<BotConnectInputAuth>(BotConnectInputAuth.offline);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [accountAuth, setAccountAuth] = useState<BotAccountInputAuth>(BotAccountInputAuth.offline);
   const [accountLabel, setAccountLabel] = useState('');
@@ -228,7 +226,6 @@ function Home() {
     initializedFromStatus.current = true;
     if (status.host) setHost(status.host);
     if (status.port) setPort(String(status.port));
-    if (status.username) setUsername(status.username);
     if (status.version) setVersion(status.version);
   }, [status]);
 
@@ -247,29 +244,32 @@ function Home() {
     void queryClient.invalidateQueries({ queryKey: getGetBotLogsQueryKey() });
   };
 
-  const handleConnect = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const connectSelectedAccount = () => {
+    if (!selectedAccount) return;
     connectBot.mutate(
       {
         data: {
           host: host.trim(),
           port: Number(port),
-          username: (selectedAccount?.username ?? username).trim(),
+          username: selectedAccount.username.trim(),
           version: version.trim() || null,
-          auth: selectedAccount?.auth ?? auth,
-          accountId: selectedAccountId || null,
+          auth: selectedAccount.auth,
+          accountId: selectedAccount.id,
         },
       },
       { onSuccess: invalidateSession },
     );
   };
 
+  const handleConnect = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    connectSelectedAccount();
+  };
+
   const handleAccountSelect = (accountId: string) => {
     setSelectedAccountId(accountId);
     const account = accounts.find((item) => item.id === accountId);
     if (!account) return;
-    setUsername(account.username);
-    setAuth(account.auth);
     void queryClient.invalidateQueries({ queryKey: getGetBotStatusQueryKey() });
   };
 
@@ -291,8 +291,6 @@ function Home() {
         onSuccess: (account) => {
           void queryClient.invalidateQueries({ queryKey: getGetBotAccountsQueryKey() });
           setSelectedAccountId(account.id);
-          setUsername(account.username);
-          setAuth(account.auth);
           setAccountLabel('');
           setAccountUsername('');
           setAccountPassword('');
@@ -310,7 +308,6 @@ function Home() {
           void queryClient.invalidateQueries({ queryKey: getGetBotAccountsQueryKey() });
           if (selectedAccountId === accountId) {
             setSelectedAccountId('');
-            setAuth(BotConnectInputAuth.offline);
           }
         },
       },
@@ -319,6 +316,20 @@ function Home() {
 
   const handleDisconnect = () => {
     disconnectBot.mutate(undefined, { onSuccess: invalidateSession });
+  };
+
+  const handleReconnect = () => {
+    if (!selectedAccount || isBusy) return;
+    if (state === 'offline') {
+      connectSelectedAccount();
+      return;
+    }
+    disconnectBot.mutate(undefined, {
+      onSuccess: () => {
+        invalidateSession();
+        connectSelectedAccount();
+      },
+    });
   };
 
   const handleSendChat = (event: FormEvent<HTMLFormElement>) => {
@@ -408,11 +419,6 @@ function Home() {
       <section className="main-panel">
         <div className="content-wrap">
           <div className="page-intro reveal">
-            <div>
-              <div className="overline"><span className="overline-line" /> LIVE BOT SESSION</div>
-              <h1>Command your<br /><em>world.</em></h1>
-              <p className="intro-copy">Keep one eye on the wire. Send the next instruction from here.</p>
-            </div>
             <div className="intro-meta">
               <div className="meta-label">LAST TELEMETRY</div>
               <div className="meta-time" data-testid="text-last-updated">{statusQuery.isLoading ? '—' : relativeTime(status?.updatedAt)}</div>
@@ -434,7 +440,7 @@ function Home() {
             </div>
             <div className="banner-detail">
               <span className="detail-kicker">BOT IDENTITY</span>
-              <span className="detail-value" data-testid="text-bot-identity">{status?.username ?? username}</span>
+                  <span className="detail-value" data-testid="text-bot-identity">{status?.username ?? selectedAccount?.username ?? '—'}</span>
             </div>
             <StatusPill state={state} />
           </div>
@@ -531,15 +537,15 @@ function Home() {
               </div>
               <form onSubmit={handleConnect} className="config-form">
                 <label className="field">
-                  <span>SAVED IDENTITY <i>OPTIONAL</i></span>
+                  <span>SAVED IDENTITY</span>
                   <div className="select-account-wrap">
-                    <select value={selectedAccountId} onChange={(event) => handleAccountSelect(event.target.value)} data-testid="select-account">
-                      <option value="">Manual connection</option>
+                    <select value={selectedAccountId} onChange={(event) => handleAccountSelect(event.target.value)} required data-testid="select-account">
+                      <option value="">Select an account</option>
                       {accounts.map((account) => <option value={account.id} key={account.id}>{account.label} · {account.username}</option>)}
                     </select>
                     <ChevronDown size={14} />
                   </div>
-                  <span className="field-hint">{selectedAccount ? `${selectedAccount.auth} identity selected for this connection.` : 'Enter credentials in the target fields below.'}</span>
+                  <span className="field-hint">{selectedAccount ? `${selectedAccount.auth} identity selected for this connection.` : 'Select an account from the library before connecting.'}</span>
                 </label>
                 <label className="field">
                   <span>SERVER ADDRESS</span>
@@ -555,25 +561,15 @@ function Home() {
                     <div className="field-wrap"><Layers3 size={15} /><input value={version} onChange={(event) => setVersion(event.target.value)} placeholder="auto-detect" data-testid="input-version" /></div>
                   </label>
                 </div>
-                <label className="field">
-                  <span>BOT USERNAME</span>
-                  <div className="field-wrap"><AtSign size={15} /><input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="OperatorBot" data-testid="input-username" required /></div>
-                </label>
-                <div className="auth-row">
-                  <div>
-                    <span className="field-label">AUTH MODE</span>
-                    <div className="auth-options">
-                      <button type="button" className={`auth-option ${auth === BotConnectInputAuth.offline ? 'auth-selected' : ''}`} onClick={() => setAuth(BotConnectInputAuth.offline)} data-testid="button-auth-offline"><span className="auth-radio" /> Offline</button>
-                    </div>
-                  </div>
-                  <button type="button" className="help-button" aria-label="About authentication modes" data-testid="button-auth-help"><CircleHelp size={16} /></button>
-                </div>
                 {connectBot.isError && <div className="inline-error" role="alert" data-testid="error-connect"><AlertTriangle size={15} /> {errorText(connectBot.error)}</div>}
                 <div className="form-actions">
-                  <button className="primary-button" type="submit" disabled={isBusy} data-testid="button-connect">
+                  <button className="primary-button" type="submit" disabled={isBusy || !selectedAccount} data-testid="button-connect">
                     {connectBot.isPending ? <RefreshCw size={16} className="spin" /> : <Zap size={16} />}
                     {connectBot.isPending ? 'Connecting…' : 'Connect bot'}
                     <ArrowUpRight size={15} className="button-arrow" />
+                  </button>
+                  <button className="secondary-button" type="button" onClick={handleReconnect} disabled={isBusy || !selectedAccount} data-testid="button-reconnect">
+                    <RefreshCw size={15} /> Reconnect
                   </button>
                   <button className="secondary-button" type="button" onClick={handleDisconnect} disabled={isBusy || state === 'offline'} data-testid="button-disconnect">
                     <Unplug size={15} /> Disconnect
@@ -671,7 +667,6 @@ function Home() {
                 <SectionLabel icon={MessageSquare} eyebrow="04 / OPERATOR INPUT" title="Send chat" />
                 <span className="panel-tag">MAX 256</span>
               </div>
-              <div className="chat-context"><div className="chat-context-icon"><MessageSquare size={15} /></div><span>Message will be sent as <strong>{status?.username ?? username}</strong></span></div>
               {sendChat.isError && <div className="inline-error" role="alert" data-testid="error-chat"><AlertTriangle size={15} /> {errorText(sendChat.error)}</div>}
               <form className="chat-form" onSubmit={handleSendChat}>
                 <textarea value={chatMessage} onChange={(event) => setChatMessage(event.target.value.slice(0, 256))} placeholder="Type a server message…" rows={3} maxLength={256} disabled={state !== 'online' || sendChat.isPending} data-testid="input-chat" />
