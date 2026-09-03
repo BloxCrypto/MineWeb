@@ -4,6 +4,8 @@ import pathfinderPackage from "mineflayer-pathfinder";
 import { logger } from "./logger";
 import { startPrismarineViewer, stopPrismarineViewer } from "./minecraft-viewer";
 import { supportedVersions } from "minecraft-protocol/src/version.js";
+import { db, botLogsTable } from "@workspace/db";
+import { desc } from "drizzle-orm";
 
 const { Movements, goals, pathfinder } = pathfinderPackage;
 
@@ -82,6 +84,14 @@ function addLog(level: BotLogLevel, message: string) {
   lastEvent = message;
   touch();
   logger.info({ level, message }, "Mineflayer bot event");
+  if (process.env.DATABASE_URL) {
+    void db.insert(botLogsTable).values({
+      id: entry.id,
+      timestamp: new Date(entry.timestamp),
+      level: entry.level,
+      message: entry.message,
+    }).catch((error: unknown) => logger.error({ error }, "Could not persist bot log"));
+  }
 }
 
 function trackChatEcho(message: string) {
@@ -140,7 +150,20 @@ export function getBotStatus(): BotStatus {
   };
 }
 
-export function getBotLogs(): BotLog[] {
+export async function getBotLogs(): Promise<BotLog[]> {
+  if (process.env.DATABASE_URL) {
+    const storedLogs = await db
+      .select()
+      .from(botLogsTable)
+      .orderBy(desc(botLogsTable.timestamp))
+      .limit(MAX_LOGS);
+    return storedLogs.map((log) => ({
+      id: log.id,
+      timestamp: log.timestamp.toISOString(),
+      level: log.level as BotLogLevel,
+      message: log.message,
+    }));
+  }
   return logs;
 }
 

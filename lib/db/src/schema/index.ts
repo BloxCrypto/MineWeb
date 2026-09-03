@@ -18,4 +18,5 @@
 //   export type Post = typeof postsTable.$inferSelect;
 
 export * from "./minecraft-accounts";
+export * from "./bot-logs";
 export * from "./auth";

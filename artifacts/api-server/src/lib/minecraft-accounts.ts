@@ -117,21 +117,9 @@ export async function listMinecraftAccounts(ownerId = "default"): Promise<Minecr
         .from(minecraftAccountsTable)
         .where(eq(minecraftAccountsTable.ownerId, ownerId))
         .orderBy(desc(minecraftAccountsTable.createdAt));
-      if (Array.isArray(accounts) && accounts.length > 0) {
-        // Merge with file accounts
-        const map = new Map<string, MinecraftAccountSummary>();
-        for (const item of accounts) {
-          map.set(item.id, toSummary(item));
-        }
-        for (const item of fileAccounts.filter((item) => item.ownerId === ownerId)) {
-          if (!map.has(item.id)) {
-            map.set(item.id, toSummary(item));
-          }
-        }
-        return Array.from(map.values());
-      }
+      return accounts.map(toSummary);
     } catch (err) {
-      console.warn("[minecraft-accounts] Database query failed, using file storage:", err);
+      throw new Error("The account database is unavailable.");
     }
   }
 
@@ -161,10 +149,6 @@ export async function createMinecraftAccount(input: {
     updatedAt: now,
   };
 
-  const accounts = loadAccountsFromFile();
-  accounts.unshift(newAccount);
-  saveAccountsToFile(accounts);
-
   if (process.env.DATABASE_URL) {
     try {
       await db.insert(minecraftAccountsTable).values({
@@ -178,32 +162,34 @@ export async function createMinecraftAccount(input: {
         updatedAt: new Date(newAccount.updatedAt),
       });
     } catch (err) {
-      console.warn("[minecraft-accounts] Database insert failed:", err);
+      throw new Error("The account could not be saved to the database.");
     }
+  } else {
+    const accounts = loadAccountsFromFile();
+    accounts.unshift(newAccount);
+    saveAccountsToFile(accounts);
   }
 
   return toSummary(newAccount);
 }
 
 export async function deleteMinecraftAccount(id: string, ownerId = "default"): Promise<boolean> {
-  const accounts = loadAccountsFromFile();
-  const filtered = accounts.filter((acc) => acc.id !== id || acc.ownerId !== ownerId);
-  const deleted = filtered.length !== accounts.length;
-
-  if (deleted) {
-    saveAccountsToFile(filtered);
-  }
-
   if (process.env.DATABASE_URL) {
     try {
-      await db
+      const deleted = await db
         .delete(minecraftAccountsTable)
-        .where(and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)));
+        .where(and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)))
+        .returning({ id: minecraftAccountsTable.id });
+      return deleted.length > 0;
     } catch (err) {
-      console.warn("[minecraft-accounts] Database delete failed:", err);
+      throw new Error("The account could not be deleted from the database.");
     }
   }
 
+  const accounts = loadAccountsFromFile();
+  const filtered = accounts.filter((acc) => acc.id !== id || acc.ownerId !== ownerId);
+  const deleted = filtered.length !== accounts.length;
+  if (deleted) saveAccountsToFile(filtered);
   return deleted;
 }
 

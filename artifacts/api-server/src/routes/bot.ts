@@ -84,8 +84,12 @@ router.get("/bot/status", (_req, res) => {
   res.json(GetBotStatusResponse.parse(getBotStatus()));
 });
 
-router.get("/bot/logs", (_req, res) => {
-  res.json(GetBotLogsResponse.parse(getBotLogs()));
+router.get("/bot/logs", async (_req, res) => {
+  try {
+    res.json(GetBotLogsResponse.parse(await getBotLogs()));
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Bot logs are unavailable." });
+  }
 });
 
 router.get("/bot/players", (_req, res) => {
