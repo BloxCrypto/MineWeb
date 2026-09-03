@@ -1,0 +1,71 @@
+# Base44 dev environment for the Minecraft Bot Console.
+# Single-origin wiring: the Express API + Vite (middleware mode) dev server
+# both run in one Node process on host port 3000.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mcbot
+      POSTGRES_PASSWORD: mcbot_dev_pw
+      POSTGRES_DB: mcbot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcbot -d mcbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: install workspace dependencies into the shared node_modules volume.
+  setup:
+    build:
+      context: .
+      dockerfile: Dockerfile.base44
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    command: npm install --no-audit --no-fund
+    restart: "no"
+
+  # One-shot: push the Drizzle schema to Postgres (best-effort, non-blocking for web).
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.base44
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    environment:
+      DATABASE_URL: postgres://mcbot:mcbot_dev_pw@db:5432/mcbot
+    depends_on:
+      db:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+    command: npx drizzle-kit push --config lib/db/drizzle.config.ts
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.base44
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://mcbot:mcbot_dev_pw@db:5432/mcbot
+      SESSION_SECRET: base44-dev-session-secret-9f3a7c2e1b8d4f6a5e0c
+      PORT: "3000"
+      NODE_ENV: development
+      LOG_LEVEL: info
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    command: npm run dev
+
+volumes:
+  pgdata:
+  node_modules:

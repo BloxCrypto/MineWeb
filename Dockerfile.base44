@@ -1,0 +1,11 @@
+FROM node:22
+
+# Runtime libs needed by the `canvas` native addon (used by mineflayer/prismarine-viewer)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcairo2 libpango1.0-0 libjpeg62-turbo libgif7 librsvg2-2 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Project was authored for pnpm; npm needs this to tolerate its peer-dep ranges.
+RUN npm config set legacy-peer-deps true
