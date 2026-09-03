@@ -1,7 +1,22 @@
+import { useEffect, useState } from 'react';
 import { ArrowRight, Bot, Cable, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'wouter';
+import { supabase } from '@/lib/supabase';
 
 function Landing() {
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+    void supabase.auth.getSession().then(({ data }) => setIsSignedIn(Boolean(data.session)));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsSignedIn(Boolean(session));
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const dashboardHref = isSignedIn ? '/dashboard' : '/signin';
+
   return (
     <main className="landing-page">
       <header className="landing-nav">
@@ -13,8 +28,8 @@ function Landing() {
           </span>
         </Link>
         <nav className="landing-actions" aria-label="Main navigation">
-          <Link href="/signin" className="text-link">Sign in</Link>
-          <Link href="/signin" className="landing-nav-button">Open dashboard <ArrowRight size={15} /></Link>
+          {!isSignedIn && <Link href="/signin" className="text-link">Sign in</Link>}
+          <Link href={dashboardHref} className="landing-nav-button">Open dashboard <ArrowRight size={15} /></Link>
         </nav>
       </header>
 
@@ -24,8 +39,8 @@ function Landing() {
           <h1>Keep every bot<br /><em>in formation.</em></h1>
           <p className="landing-description">A focused command center for connecting, observing, and operating your Minecraft bots without losing the signal.</p>
           <div className="hero-actions">
-            <Link href="/signin" className="primary-button hero-button">Sign in to MineWeb <ArrowRight size={16} /></Link>
-            <Link href="/signin" className="secondary-button hero-button">View dashboard</Link>
+            {!isSignedIn && <Link href="/signin" className="primary-button hero-button">Sign in to MineWeb <ArrowRight size={16} /></Link>}
+            <Link href={dashboardHref} className="secondary-button hero-button">View dashboard</Link>
           </div>
         </div>
 
