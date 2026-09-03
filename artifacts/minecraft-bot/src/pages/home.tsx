@@ -41,7 +41,6 @@ import {
   LockKeyhole,
   Menu,
   MessageSquare,
-  MoreHorizontal,
   Plus,
   Radio,
   RefreshCw,
@@ -94,17 +93,6 @@ const errorText = (error: unknown) => {
   if (error instanceof Error) return error.message;
   return 'The server rejected the request.';
 };
-
-function BrandMark() {
-  return (
-    <div className="brand-mark" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-      <span />
-    </div>
-  );
-}
 
 function SectionLabel({ icon: Icon, eyebrow, title }: { icon: typeof Activity; eyebrow?: string; title: string }) {
   return (
@@ -380,26 +368,10 @@ function Home() {
   return (
     <main className="app-shell">
       <aside className={`sidebar ${mobileSidebarOpen ? 'mobile-sidebar-open' : ''}`}>
-        <div className="brand-lockup">
-          <BrandMark />
-          <div>
-            <div className="brand-name">redstone<span>/</span>deck</div>
-            <div className="brand-subtitle">Mineflayer command console</div>
-          </div>
+        <div className="mobile-sidebar-controls">
           <button type="button" className="mobile-menu-button" onClick={() => setMobileSidebarOpen((open) => !open)} aria-label={mobileSidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileSidebarOpen} data-testid="button-mobile-sidebar">
             {mobileSidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
-        </div>
-
-        <div className="side-rule" />
-        <div className="workspace-label"><span>ACTIVE WORKSPACE</span><MoreHorizontal size={15} /></div>
-        <div className="workspace-card">
-          <div className="workspace-avatar"><Gamepad2 size={16} /></div>
-          <div className="min-w-0">
-            <div className="workspace-name">survival / primary</div>
-            <div className="workspace-target">{connectionTarget}</div>
-          </div>
-          <span className={`tiny-signal signal-${currentState.color}`} />
         </div>
 
         <nav className="side-nav" aria-label="Console sections">
