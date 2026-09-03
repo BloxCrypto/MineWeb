@@ -107,7 +107,7 @@ function toSummary(account: StoredAccount | MinecraftAccount): MinecraftAccountS
   };
 }
 
-export async function listMinecraftAccounts(_ownerId?: string): Promise<MinecraftAccountSummary[]> {
+export async function listMinecraftAccounts(ownerId = "default"): Promise<MinecraftAccountSummary[]> {
   const fileAccounts = loadAccountsFromFile();
 
   if (process.env.DATABASE_URL) {
@@ -115,6 +115,7 @@ export async function listMinecraftAccounts(_ownerId?: string): Promise<Minecraf
       const accounts = await db
         .select()
         .from(minecraftAccountsTable)
+        .where(eq(minecraftAccountsTable.ownerId, ownerId))
         .orderBy(desc(minecraftAccountsTable.createdAt));
       if (Array.isArray(accounts) && accounts.length > 0) {
         // Merge with file accounts
@@ -122,7 +123,7 @@ export async function listMinecraftAccounts(_ownerId?: string): Promise<Minecraf
         for (const item of accounts) {
           map.set(item.id, toSummary(item));
         }
-        for (const item of fileAccounts) {
+        for (const item of fileAccounts.filter((item) => item.ownerId === ownerId)) {
           if (!map.has(item.id)) {
             map.set(item.id, toSummary(item));
           }
@@ -134,7 +135,7 @@ export async function listMinecraftAccounts(_ownerId?: string): Promise<Minecraf
     }
   }
 
-  return fileAccounts.map(toSummary);
+  return fileAccounts.filter((item) => item.ownerId === ownerId).map(toSummary);
 }
 
 export async function createMinecraftAccount(input: {
@@ -184,9 +185,9 @@ export async function createMinecraftAccount(input: {
   return toSummary(newAccount);
 }
 
-export async function deleteMinecraftAccount(id: string, _ownerId?: string): Promise<boolean> {
+export async function deleteMinecraftAccount(id: string, ownerId = "default"): Promise<boolean> {
   const accounts = loadAccountsFromFile();
-  const filtered = accounts.filter((acc) => acc.id !== id);
+  const filtered = accounts.filter((acc) => acc.id !== id || acc.ownerId !== ownerId);
   const deleted = filtered.length !== accounts.length;
 
   if (deleted) {
@@ -197,7 +198,7 @@ export async function deleteMinecraftAccount(id: string, _ownerId?: string): Pro
     try {
       await db
         .delete(minecraftAccountsTable)
-        .where(eq(minecraftAccountsTable.id, id));
+        .where(and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)));
     } catch (err) {
       console.warn("[minecraft-accounts] Database delete failed:", err);
     }
@@ -208,17 +209,17 @@ export async function deleteMinecraftAccount(id: string, _ownerId?: string): Pro
 
 export async function getMinecraftAccountCredentials(
   id: string,
-  _ownerId?: string,
+  ownerId = "default",
 ): Promise<MinecraftAccountCredentials> {
   const accounts = loadAccountsFromFile();
-  let account: StoredAccount | null = accounts.find((acc) => acc.id === id) ?? null;
+  let account: StoredAccount | null = accounts.find((acc) => acc.id === id && acc.ownerId === ownerId) ?? null;
 
   if (!account && process.env.DATABASE_URL) {
     try {
       const [dbAccount] = await db
         .select()
         .from(minecraftAccountsTable)
-        .where(eq(minecraftAccountsTable.id, id))
+        .where(and(eq(minecraftAccountsTable.id, id), eq(minecraftAccountsTable.ownerId, ownerId)))
         .limit(1);
       if (dbAccount) {
         account = {

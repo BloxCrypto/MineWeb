@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import {
   CreateBotAccountBody,
   ConnectBotBody,
@@ -27,9 +27,16 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/bot/accounts", async (_req, res) => {
+function getOwnerId(req: Request): string {
+  const authenticatedUserId = req.user?.id;
+  if (authenticatedUserId) return authenticatedUserId;
+  const clientId = req.header("x-client-id")?.trim();
+  return clientId && /^[a-zA-Z0-9_-]{16,100}$/.test(clientId) ? `device:${clientId}` : "default";
+}
+
+router.get("/bot/accounts", async (req, res) => {
   try {
-    res.json(await listMinecraftAccounts());
+    res.json(await listMinecraftAccounts(getOwnerId(req)));
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : "Saved accounts are unavailable.",
@@ -50,8 +57,7 @@ router.post("/bot/accounts", async (req, res) => {
   }
 
   try {
-    const ownerId = (req.user as any)?.id || "default";
-    res.status(201).json(await createMinecraftAccount({ ...parsed.data, ownerId }));
+    res.status(201).json(await createMinecraftAccount({ ...parsed.data, ownerId: getOwnerId(req) }));
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : "The account could not be saved.",
@@ -61,7 +67,7 @@ router.post("/bot/accounts", async (req, res) => {
 
 router.delete("/bot/accounts/:accountId", async (req, res) => {
   try {
-    const deleted = await deleteMinecraftAccount(req.params.accountId);
+    const deleted = await deleteMinecraftAccount(req.params.accountId, getOwnerId(req));
     if (!deleted) {
       res.status(404).json({ error: "Saved Minecraft account was not found." });
       return;
@@ -96,7 +102,7 @@ router.post("/bot/connect", async (req, res) => {
   try {
     const { accountId, ...connectionInput } = parsed.data;
     const account = accountId
-      ? await getMinecraftAccountCredentials(accountId)
+      ? await getMinecraftAccountCredentials(accountId, getOwnerId(req))
       : null;
     const connectionSettings = {
       ...connectionInput,

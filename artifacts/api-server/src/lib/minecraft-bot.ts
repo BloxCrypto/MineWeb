@@ -294,73 +294,41 @@ function requireOnlineBot(): Bot {
 
 export function runBotCommand(command: string): BotCommandResult {
   const currentBot = requireOnlineBot();
-  const normalized = command.trim().replace(/^!/, "");
-  const [name, ...args] = normalized.split(/\s+/);
-
-  if (name === "help") {
-    return {
-      output: "!say <message> · !goto <x> <y> <z> · !serverlist · !help",
-      status: getBotStatus(),
-    };
+  const args = command.trim().replace(/^!?goto\s+/i, "").split(/\s+/);
+  if (args.length !== 2 && args.length !== 3) {
+    throw new Error("Enter 2 coordinates (x z) or 3 coordinates (x y z).");
   }
 
-  if (name === "serverlist") {
-    const players = getBotPlayers();
-    return {
-      output:
-        players.length > 0
-          ? `Visible players (${players.length}): ${players.map((player) => player.username).join(", ")}`
-          : "No players are synchronized yet.",
-      status: getBotStatus(),
-    };
+  const numbers = args.map(Number);
+  if (numbers.some((value) => !Number.isFinite(value))) {
+    throw new Error("Coordinates must be numbers.");
   }
 
-  if (name === "say") {
-    const message = args.join(" ").trim();
-    if (!message) throw new Error("Usage: !say <message>");
-    trackChatEcho(message);
-    currentBot.chat(message);
-    addLog("chat", `${currentBot.username}: ${message}`);
-    return { output: `Sent to chat: ${message}`, status: getBotStatus() };
+  const x = numbers[0];
+  const z = args.length === 3 ? numbers[2] : numbers[1];
+  const y = args.length === 3 ? numbers[1] : currentBot.entity.position.y;
+  const target = {
+    x: Math.floor(x),
+    y: Math.floor(y),
+    z: Math.floor(z),
+  };
+
+  if (!currentBot.pathfinder) {
+    throw new Error("Pathfinder is not ready yet.");
   }
 
-  if (name === "goto") {
-    if (args.length !== 2 && args.length !== 3) {
-      throw new Error("Usage: !goto <x> <z> or !goto <x> <y> <z>");
-    }
+  void currentBot.pathfinder
+    .goto(new goals.GoalBlock(target.x, target.y, target.z))
+    .then(() => addLog("success", `Arrived at (${target.x}, ${target.y}, ${target.z})`))
+    .catch((error: unknown) =>
+      addLog(
+        "error",
+        `Pathfinder failed: ${error instanceof Error ? error.message : "unknown error"}`,
+      ),
+    );
 
-    const numbers = args.map(Number);
-    if (numbers.some((value) => !Number.isFinite(value))) {
-      throw new Error("Coordinates must be numbers.");
-    }
+  const output = `Navigating to (${target.x}, ${target.y}, ${target.z})`;
+  addLog("info", output);
+  return { output, status: getBotStatus() };
 
-    const x = numbers[0];
-    const z = args.length === 3 ? numbers[2] : numbers[1];
-    const y = args.length === 3 ? numbers[1] : currentBot.entity.position.y;
-    const target = {
-      x: Math.floor(x),
-      y: Math.floor(y),
-      z: Math.floor(z),
-    };
-
-    if (!currentBot.pathfinder) {
-      throw new Error("Pathfinder is not ready yet.");
-    }
-
-    void currentBot.pathfinder
-      .goto(new goals.GoalBlock(target.x, target.y, target.z))
-      .then(() => addLog("success", `Arrived at (${target.x}, ${target.y}, ${target.z})`))
-      .catch((error: unknown) =>
-        addLog(
-          "error",
-          `Pathfinder failed: ${error instanceof Error ? error.message : "unknown error"}`,
-        ),
-      );
-
-    const output = `Navigating to (${target.x}, ${target.y}, ${target.z})`;
-    addLog("info", output);
-    return { output, status: getBotStatus() };
-  }
-
-  throw new Error("Unknown command. Try !help.");
 }

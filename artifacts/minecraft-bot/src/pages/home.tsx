@@ -181,11 +181,14 @@ function Home() {
   const [command, setCommand] = useState('');
   const [copied, setCopied] = useState(false);
   const initializedFromStatus = useRef(false);
+  const clientId = window.localStorage.getItem('minecraft-console:client-id') ?? 'default';
+  const accountsStorageKey = `minecraft-console:accounts:${clientId}`;
+  const selectedAccountStorageKey = `minecraft-console:selected-account:${clientId}`;
 
   useEffect(() => {
     try {
-      const cached = window.localStorage.getItem('minecraft-console:accounts');
-      const selected = window.localStorage.getItem('minecraft-console:selected-account');
+      const cached = window.localStorage.getItem(accountsStorageKey);
+      const selected = window.localStorage.getItem(selectedAccountStorageKey);
       if (cached) {
         const parsed = JSON.parse(cached) as BotAccount[];
         if (Array.isArray(parsed)) setCachedAccounts(parsed);
@@ -194,29 +197,29 @@ function Home() {
     } catch {
       // Local storage is an enhancement; the server remains the source of truth.
     }
-  }, []);
+  }, [accountsStorageKey, selectedAccountStorageKey]);
 
   useEffect(() => {
     if (!Array.isArray(accountsQuery.data)) return;
     setCachedAccounts(accountsQuery.data);
     try {
-      window.localStorage.setItem('minecraft-console:accounts', JSON.stringify(accountsQuery.data));
+      window.localStorage.setItem(accountsStorageKey, JSON.stringify(accountsQuery.data));
     } catch {
       // Continue using the server-backed list when browser storage is unavailable.
     }
-  }, [accountsQuery.data]);
+  }, [accountsQuery.data, accountsStorageKey]);
 
   useEffect(() => {
     try {
       if (selectedAccountId) {
-        window.localStorage.setItem('minecraft-console:selected-account', selectedAccountId);
+        window.localStorage.setItem(selectedAccountStorageKey, selectedAccountId);
       } else {
-        window.localStorage.removeItem('minecraft-console:selected-account');
+        window.localStorage.removeItem(selectedAccountStorageKey);
       }
     } catch {
       // Selection still works for the current session when storage is unavailable.
     }
-  }, [selectedAccountId]);
+  }, [selectedAccountId, selectedAccountStorageKey]);
 
   const accounts = Array.isArray(accountsQuery.data) ? accountsQuery.data : cachedAccounts;
 
@@ -674,8 +677,8 @@ function Home() {
               <div className="command-divider" />
               <div className="command-heading">
                 <div>
-                  <span className="readout-label"><Compass size={14} /> LOCAL COMMANDS</span>
-                  <p>Run movement and utility commands from your script.</p>
+                  <span className="readout-label"><Compass size={14} /> GOTO</span>
+                  <p>Enter coordinates for the bot to walk to.</p>
                 </div>
                 <span className="panel-tag">SAFE SET</span>
               </div>
@@ -683,18 +686,13 @@ function Home() {
               <form className="command-form" onSubmit={handleRunCommand}>
                 <div className="command-input-wrap">
                   <Command size={15} />
-                  <input value={command} onChange={(event) => setCommand(event.target.value.slice(0, 256))} placeholder="!goto 120 64 -30" maxLength={256} disabled={state !== 'online' || runCommand.isPending} data-testid="input-command" />
+                  <input value={command} onChange={(event) => setCommand(event.target.value.slice(0, 256))} placeholder="100 64 100" maxLength={256} disabled={state !== 'online' || runCommand.isPending} data-testid="input-command" />
                 </div>
                 <button className="send-button command-submit" type="submit" disabled={!command.trim() || state !== 'online' || runCommand.isPending} data-testid="button-run-command">
                   {runCommand.isPending ? <RefreshCw size={15} className="spin" /> : <Zap size={15} />}
                   {runCommand.isPending ? 'Running…' : 'Run'}
                 </button>
               </form>
-              <div className="quick-commands">
-                {['!serverlist', '!help'].map((quickCommand) => (
-                  <button key={quickCommand} type="button" onClick={() => setCommand(quickCommand)} disabled={state !== 'online'} data-testid={`button-quick-command-${quickCommand.slice(1)}`}>{quickCommand}</button>
-                ))}
-              </div>
               <div className="players-strip">
                 <div className="players-strip-heading"><span className="readout-label"><Users size={14} /> VISIBLE PLAYERS</span><span>{playersQuery.isFetching ? 'syncing' : `${Array.isArray(playersQuery.data) ? playersQuery.data.length : 0} online`}</span></div>
                 {state !== 'online' ? <span className="players-empty">Connect to synchronize the lobby.</span> : playersQuery.isLoading ? <span className="players-empty">Reading player map…</span> : Array.isArray(playersQuery.data) && playersQuery.data.length ? <div className="player-chips">{playersQuery.data.slice(0, 8).map((player) => <span key={player.username}>{player.username}</span>)}</div> : <span className="players-empty">No players synchronized yet.</span>}
