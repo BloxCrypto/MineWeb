@@ -25,9 +25,9 @@ async function startServer() {
       distPath = path.resolve(process.cwd(), "artifacts/minecraft-bot/dist");
     }
     app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
+    app.get("/{*splat}", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
-    });
+   });
   }
 
   httpServer.listen(PORT, "0.0.0.0", () => {
@@ -35,6 +35,10 @@ async function startServer() {
   });
 }
 
+startServer().catch((err) => {
+  logger.error(err, "Failed to start server");
+  process.exit(1);
+});
 startServer().catch((err) => {
   logger.error(err, "Failed to start server");
   process.exit(1);
