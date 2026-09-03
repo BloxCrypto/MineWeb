@@ -59,6 +59,7 @@ import {
 } from 'lucide-react';
 
 type ConnectionState = 'offline' | 'connecting' | 'online' | 'error';
+type ConsoleView = 'overview' | 'accounts';
 
 const stateCopy: Record<ConnectionState, { label: string; detail: string; color: string }> = {
   offline: { label: 'Offline', detail: 'Ready to connect', color: 'slate' },
@@ -180,6 +181,7 @@ function Home() {
   const [chatMessage, setChatMessage] = useState('');
   const [command, setCommand] = useState('');
   const [copied, setCopied] = useState(false);
+  const [activeView, setActiveView] = useState<ConsoleView>('overview');
   const initializedFromStatus = useRef(false);
   const clientId = window.localStorage.getItem('minecraft-console:client-id') ?? 'default';
   const accountsStorageKey = `minecraft-console:accounts:${clientId}`;
@@ -396,9 +398,10 @@ function Home() {
         </div>
 
         <nav className="side-nav" aria-label="Console sections">
-          <div className="nav-item nav-item-active" data-testid="nav-overview"><Activity size={17} /><span>Overview</span><span className="nav-key">01</span></div>
-          <div className="nav-item" data-testid="nav-activity"><Terminal size={17} /><span>Activity log</span><span className="nav-count">{Array.isArray(logs) ? logs.length : '—'}</span></div>
-          <div className="nav-item" data-testid="nav-target"><Server size={17} /><span>Target config</span></div>
+          <button type="button" className={`nav-item ${activeView === 'overview' ? 'nav-item-active' : ''}`} onClick={() => setActiveView('overview')} data-testid="nav-overview"><Activity size={17} /><span>Overview</span><span className="nav-key">01</span></button>
+          <button type="button" className={`nav-item ${activeView === 'accounts' ? 'nav-item-active' : ''}`} onClick={() => setActiveView('accounts')} data-testid="nav-accounts"><LockKeyhole size={17} /><span>Account manager</span><span className="nav-count">{accounts.length}</span></button>
+          <button type="button" className="nav-item" onClick={() => setActiveView('overview')} data-testid="nav-activity"><Terminal size={17} /><span>Activity log</span><span className="nav-count">{Array.isArray(logs) ? logs.length : '—'}</span></button>
+          <button type="button" className="nav-item" onClick={() => setActiveView('overview')} data-testid="nav-target"><Server size={17} /><span>Target config</span></button>
         </nav>
 
         <div className="sidebar-bottom">
@@ -445,7 +448,7 @@ function Home() {
             <StatusPill state={state} />
           </div>
 
-          <section className="panel accounts-panel reveal delay-2">
+          {activeView === 'accounts' && <section className="panel accounts-panel reveal delay-2">
             <div className="panel-head">
               <SectionLabel icon={LockKeyhole} title="Account library" />
               <span className="panel-tag" data-testid="text-account-count">{accounts.length} SAVED</span>
@@ -522,9 +525,9 @@ function Home() {
                 </div>
               </form>
             </div>
-          </section>
+          </section>}
 
-          <div className="dashboard-grid">
+          {activeView === 'overview' && <div className="dashboard-grid">
             <section className="panel config-panel reveal delay-2">
               <div className="panel-head">
                 <SectionLabel icon={Settings2} eyebrow="01 / CONNECTION" title="Target setup" />
@@ -608,9 +611,9 @@ function Home() {
                 </div>
               )}
             </section>
-          </div>
+          </div>}
 
-          <section className="panel viewer-panel reveal delay-4">
+          {activeView === 'overview' && <section className="panel viewer-panel reveal delay-4">
             <div className="panel-head">
               <SectionLabel icon={Gamepad2} eyebrow="03 / WORLD VIEW" title="Prismarine viewer" />
               <div className="viewer-head-actions">
@@ -630,9 +633,9 @@ function Home() {
                 </div>
               )}
             </div>
-          </section>
+          </section>}
 
-          <div className="lower-grid">
+          {activeView === 'overview' && <div className="lower-grid">
             <section className="panel logs-panel reveal delay-4">
               <div className="panel-head">
                 <SectionLabel icon={Terminal} eyebrow="03 / EVENT STREAM" title="Recent logs" />
@@ -698,7 +701,7 @@ function Home() {
                 {state !== 'online' ? <span className="players-empty">Connect to synchronize the lobby.</span> : playersQuery.isLoading ? <span className="players-empty">Reading player map…</span> : Array.isArray(playersQuery.data) && playersQuery.data.length ? <div className="player-chips">{playersQuery.data.slice(0, 8).map((player) => <span key={player.username}>{player.username}</span>)}</div> : <span className="players-empty">No players synchronized yet.</span>}
               </div>
             </section>
-          </div>
+          </div>}
         </div>
       </section>
     </main>
