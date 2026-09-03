@@ -452,6 +452,7 @@ textarea:focus-visible {
   gap: .7rem;
   align-items: center;
 }
+.mobile-menu-button { display: none; margin-left: auto; width: 2.25rem; height: 2.25rem; place-items: center; color: hsl(var(--foreground)); border: 1px solid hsl(var(--sidebar-border)); border-radius: .38rem; background: hsl(var(--sidebar-accent)); cursor: pointer; }
 
 .brand-mark {
   height: 2.2rem;
@@ -747,7 +748,9 @@ button:disabled, textarea:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 700px) {
   .app-shell { display: block; background: hsl(var(--background)); overflow: visible; }
   .sidebar { width: 100%; min-height: auto; padding: 1.15rem 1rem; border-right: 0; border-bottom: 1px solid hsl(var(--sidebar-border)); }
-  .side-rule, .workspace-label, .side-nav, .sidebar-bottom { display: none; }
+  .side-rule, .workspace-label, .sidebar-bottom { display: none; }
+  .mobile-menu-button { display: grid; }
+  .sidebar.mobile-sidebar-open .side-nav { display: grid; margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid hsl(var(--sidebar-border)); }
   .topbar { height: 3.75rem; padding: 0 1rem; }
   .crumbs span, .polling-label { display: none; }
   .crumbs { font-size: .56rem; }

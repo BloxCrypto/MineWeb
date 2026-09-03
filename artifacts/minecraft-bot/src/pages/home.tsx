@@ -39,6 +39,7 @@ import {
   HeartPulse,
   Layers3,
   LockKeyhole,
+  Menu,
   MessageSquare,
   MoreHorizontal,
   Plus,
@@ -182,6 +183,7 @@ function Home() {
   const [command, setCommand] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeView, setActiveView] = useState<ConsoleView>('overview');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const initializedFromStatus = useRef(false);
   const clientId = window.localStorage.getItem('minecraft-console:client-id') ?? 'default';
   const accountsStorageKey = `minecraft-console:accounts:${clientId}`;
@@ -377,13 +379,16 @@ function Home() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      <aside className={`sidebar ${mobileSidebarOpen ? 'mobile-sidebar-open' : ''}`}>
         <div className="brand-lockup">
           <BrandMark />
           <div>
             <div className="brand-name">redstone<span>/</span>deck</div>
             <div className="brand-subtitle">Mineflayer command console</div>
           </div>
+          <button type="button" className="mobile-menu-button" onClick={() => setMobileSidebarOpen((open) => !open)} aria-label={mobileSidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileSidebarOpen} data-testid="button-mobile-sidebar">
+            {mobileSidebarOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
 
         <div className="side-rule" />
@@ -398,10 +403,10 @@ function Home() {
         </div>
 
         <nav className="side-nav" aria-label="Console sections">
-          <button type="button" className={`nav-item ${activeView === 'overview' ? 'nav-item-active' : ''}`} onClick={() => setActiveView('overview')} data-testid="nav-overview"><Activity size={17} /><span>Overview</span><span className="nav-key">01</span></button>
-          <button type="button" className={`nav-item ${activeView === 'accounts' ? 'nav-item-active' : ''}`} onClick={() => setActiveView('accounts')} data-testid="nav-accounts"><LockKeyhole size={17} /><span>Account manager</span><span className="nav-count">{accounts.length}</span></button>
-          <button type="button" className="nav-item" onClick={() => setActiveView('overview')} data-testid="nav-activity"><Terminal size={17} /><span>Activity log</span><span className="nav-count">{Array.isArray(logs) ? logs.length : '—'}</span></button>
-          <button type="button" className="nav-item" onClick={() => setActiveView('overview')} data-testid="nav-target"><Server size={17} /><span>Target config</span></button>
+          <button type="button" className={`nav-item ${activeView === 'overview' ? 'nav-item-active' : ''}`} onClick={() => { setActiveView('overview'); setMobileSidebarOpen(false); }} data-testid="nav-overview"><Activity size={17} /><span>Overview</span><span className="nav-key">01</span></button>
+          <button type="button" className={`nav-item ${activeView === 'accounts' ? 'nav-item-active' : ''}`} onClick={() => { setActiveView('accounts'); setMobileSidebarOpen(false); }} data-testid="nav-accounts"><LockKeyhole size={17} /><span>Account manager</span><span className="nav-count">{accounts.length}</span></button>
+          <button type="button" className="nav-item" onClick={() => { setActiveView('overview'); setMobileSidebarOpen(false); }} data-testid="nav-activity"><Terminal size={17} /><span>Activity log</span><span className="nav-count">{Array.isArray(logs) ? logs.length : '—'}</span></button>
+          <button type="button" className="nav-item" onClick={() => { setActiveView('overview'); setMobileSidebarOpen(false); }} data-testid="nav-target"><Server size={17} /><span>Target config</span></button>
         </nav>
 
         <div className="sidebar-bottom">
